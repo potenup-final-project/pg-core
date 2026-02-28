@@ -1,4 +1,4 @@
-package com.pgcore.core.domain.vo
+package com.pgcore.core.domain.payment.vo
 
 import com.pgcore.core.domain.exception.MoneyException
 import com.pgcore.core.exception.BusinessException

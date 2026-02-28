@@ -1,8 +1,8 @@
-package com.pgcore.core.domain
+package com.pgcore.core.domain.payment
 
 import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
-import com.pgcore.core.domain.vo.Money
+import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
