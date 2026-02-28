@@ -1,4 +1,4 @@
-package com.pgcore.core.domain.api
+package com.pgcore.core.domain.apikey
 
 import com.pgcore.core.domain.exception.ApiKeyErrorCode
 import com.pgcore.core.exception.BusinessException

@@ -1,4 +1,4 @@
-package com.pgcore.core.domain.api
+package com.pgcore.core.domain.apikey
 
 enum class ApiKeyType {
     CLIENT,
