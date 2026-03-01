@@ -17,6 +17,7 @@ import java.util.UUID
 @Service
 class ClaimPaymentUseCase(
     private val paymentRepository: PaymentRepository,
+    private val claimPaymentWriter: ClaimPaymentWriter,
 ) {
 
     /**
@@ -33,7 +34,6 @@ class ClaimPaymentUseCase(
      * - 선조회로 빠르게 처리하되, 레이스 조건(동시 요청) 대비로 DB 유니크 예외 catch 유지
      * - saveAndFlush로 유니크 예외를 현재 try/catch에서 확정적으로 잡음
      */
-    @Transactional
     fun execute(command: ClaimPaymentCommand): ClaimPaymentResult {
 
         // ---------------------------------------------------------------------
@@ -69,7 +69,7 @@ class ClaimPaymentUseCase(
         // ---------------------------------------------------------------------
         return try {
             // 신규 생성 성공 → created=true
-            paymentRepository.saveAndFlush(payment).toResult(created = true)
+            claimPaymentWriter.insertAndFlush(payment).toResult(created = true)
         } catch (e: DataIntegrityViolationException) {
 
             // -----------------------------------------------------------------
