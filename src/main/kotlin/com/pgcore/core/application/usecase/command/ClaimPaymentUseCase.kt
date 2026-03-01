@@ -19,27 +19,15 @@ class ClaimPaymentUseCase(
     private val paymentRepository: PaymentRepository,
     private val claimPaymentWriter: ClaimPaymentWriter,
 ) {
-
     /**
-     * 결제 준비(Claim) = READY 결제 생성
-     *
-     * 정책 요약
-     * 1) (merchantId, orderId) 기준으로 결제는 1건만 존재(UNIQUE)
-     * 2) 동일 orderId 재요청
-     *    - amount가 같으면: 기존 결제 반환(멱등)
-     *    - amount가 다르면: 409 Conflict
-     * 3) TTL은 30분 고정(expiresAt = now + 30m)
-     *
-     * 동시성 처리
-     * - 선조회로 빠르게 처리하되, 레이스 조건(동시 요청) 대비로 DB 유니크 예외 catch 유지
-     * - saveAndFlush로 유니크 예외를 현재 try/catch에서 확정적으로 잡음
+     * 결제 준비(READY) 생성
+     * - TTL 30분 고정
+     * - (merchantId, orderId) 중복 시: READY + payload 동일이면 기존 반환, 아니면 409
+     * - 레이스는 UNIQUE + 예외 처리로 방어
      */
     fun execute(command: ClaimPaymentCommand): ClaimPaymentResult {
 
-        // ---------------------------------------------------------------------
-        // 1) 선조회
-        //    이미 결제가 있으면 DB 예외를 발생시키지 않고 즉시 200/409로 처리한다.
-        // ---------------------------------------------------------------------
+        // 1) 선조회: 있으면 멱등 검증 후 기존 반환
         paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
             ?.let { existing ->
                 validatePaymentState(existing)
@@ -47,45 +35,28 @@ class ClaimPaymentUseCase(
                 return ClaimPaymentResult.from(existing, created = false)
             }
 
-        // ---------------------------------------------------------------------
-        // 2) 신규 생성 경로
-        //    TTL 30분을 고정으로 부여하고 READY 결제를 생성한다.
-        // ---------------------------------------------------------------------
-        val expiresAt = LocalDateTime.now().plusMinutes(30)
-
+        // 2) 신규 생성: TTL 30분 부여
         val payment = Payment.create(
             paymentKey = generatePaymentKey(),
             merchantId = command.merchantId,
             orderId = command.orderId,
             orderName = command.orderName,
             totalAmount = Money(command.amount),
-            expiresAt = expiresAt,
+            expiresAt = LocalDateTime.now().plusMinutes(30),
         )
 
-        // ---------------------------------------------------------------------
-        // 3) 저장 + 레이스 대비
-        //    동시 요청이 들어오면 선조회 시점엔 둘 다 "없음"일 수 있다.
-        //    이 경우 DB UNIQUE 제약이 최종 방어선이므로,
-        //    saveAndFlush로 즉시 INSERT를 수행해 유니크 충돌을 여기서 잡는다.
-        // ---------------------------------------------------------------------
+        // 3) 저장: saveAndFlush로 UNIQUE 충돌을 여기서 확정
         return try {
-            // 신규 생성 성공 → created=true
             val savedPayment = claimPaymentWriter.insertAndFlush(payment)
             ClaimPaymentResult.from(savedPayment, created = true)
         } catch (e: DataIntegrityViolationException) {
-
-            // -----------------------------------------------------------------
-            // 4) UNIQUE 충돌 발생(동시성/중복 주문)
-            //    이미 누군가 같은 (merchantId, orderId)로 결제를 생성했을 가능성이 높다.
-            //    → 기존 결제를 다시 조회해서 정책대로 200/409 처리한다.
-            // -----------------------------------------------------------------
-            val existingPayment = paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
+            // 레이스로 누군가 먼저 생성했을 수 있음 → 재조회 후 동일 정책 적용
+            val existing = paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
                 ?: throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID)
 
-            validatePaymentState(existingPayment)
-            validateIdempotency(existingPayment, command)
-
-            ClaimPaymentResult.from(existingPayment, created = false)
+            validatePaymentState(existing)
+            validateIdempotency(existing, command)
+            ClaimPaymentResult.from(existing, created = false)
         }
     }
 
