@@ -24,7 +24,7 @@ import java.time.LocalDateTime
         Index(name = "uk_payments_merchant_order", columnList = "merchant_id, order_id", unique = true),
         Index(name = "idx_payments_merchant_created", columnList = "merchant_id, created_at"),
         Index(name = "idx_payments_status_updated", columnList = "status, updated_at"),
-        Index(name="uq_payments_merchant_payment_key", columnList="merchant_id, payment_key", unique=true)
+        Index(name = "uq_payments_merchant_payment_key", columnList = "merchant_id, payment_key", unique = true)
     ]
 )
 class Payment protected constructor(
@@ -40,6 +40,9 @@ class Payment protected constructor(
 
     @Column(length = 80, nullable = false, updatable = false)
     val orderId: String,
+
+    @Column(length = 100, nullable = false, updatable = false)
+    val orderName: String,
 
     @Enumerated(EnumType.STRING)
     @Column(length = 3, nullable = false, updatable = false)
@@ -68,15 +71,16 @@ class Payment protected constructor(
         protected set
 
     var expiresAt: LocalDateTime? = expiresAt
-    protected set
+        protected set
     var updatedAt: LocalDateTime? = null
-    protected set
+        protected set
 
     companion object {
         fun create(
             paymentKey: String,
             merchantId: Long,
             orderId: String,
+            orderName: String,
             totalAmount: Money,
             currency: Currency = Currency.KRW,
             expiresAt: LocalDateTime? = null,
@@ -89,6 +93,7 @@ class Payment protected constructor(
                 paymentKey = paymentKey,
                 merchantId = merchantId,
                 orderId = orderId,
+                orderName = orderName,
                 currency = currency,
                 totalAmount = totalAmount,
                 balanceAmount = totalAmount,
