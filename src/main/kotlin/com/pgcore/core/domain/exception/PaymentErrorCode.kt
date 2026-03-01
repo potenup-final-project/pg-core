@@ -28,11 +28,11 @@ enum class PaymentErrorCode(
     INVALID_EXPIRE_REQUEST(HttpStatus.BAD_REQUEST, "PAY-0301", "만료 처리할 수 없는 결제 상태입니다."),
     INVALID_ABORT_REQUEST(HttpStatus.BAD_REQUEST, "PAY-0302", "중단 처리할 수 없는 결제 상태입니다."),
     INVALID_UNKNOWN_REQUEST(HttpStatus.BAD_REQUEST, "PAY-0303", "확정 불가 상태로 변경할 수 없습니다."),
-    ORDER_ID_EXPIRED(HttpStatus.CONFLICT, "PAY-0304", "이 주문번호는 이미 만료되었습니다. 새로운 주문번호로 시도하세요."),
-    ORDER_ID_NOT_READY(HttpStatus.CONFLICT, "PAY-0402", "이미 처리 중이거나 처리된 주문 번호입니다. 결제 조회/승인/취소 API를 사용해주세요."),
 
     // ===== 중복 충돌 =====
     DUPLICATE_ORDER_ID_AMOUNT_MISMATCH(HttpStatus.CONFLICT, "PAY-0401", "동일한 주문 번호로 다른 금액의 결제를 생성할 수 없습니다."),
     DUPLICATE_ORDER_ID(HttpStatus.CONFLICT, "PAY-0402", "동일한 orderId로 이미 결제가 존재합니다."),
     DUPLICATE_ORDER_ID_NAME_MISMATCH(HttpStatus.CONFLICT, "PAY-0403", "동일한 주문 번호로 다른 주문명의 결제를 생성할 수 없습니다."),
+    ORDER_ID_NOT_READY(HttpStatus.CONFLICT, "PAY-0404", "이미 처리 중이거나 처리된 주문 번호입니다. 결제 조회/승인/취소 API를 사용해주세요."),
+    ORDER_ID_EXPIRED(HttpStatus.CONFLICT, "PAY-0405", "이 주문번호는 이미 만료되었습니다. 새로운 주문번호로 시도하세요."),
 }
