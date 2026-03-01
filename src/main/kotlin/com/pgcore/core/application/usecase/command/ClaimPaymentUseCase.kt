@@ -42,8 +42,9 @@ class ClaimPaymentUseCase(
         // ---------------------------------------------------------------------
         paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
             ?.let { existing ->
-                validateExistingForIdempotency(existing, command)
-                return existing.toResult(created = false)
+                validatePaymentState(existing)
+                validateIdempotency(existing, command)
+                return ClaimPaymentResult.from(existing, created = false)
             }
 
         // ---------------------------------------------------------------------
@@ -69,7 +70,8 @@ class ClaimPaymentUseCase(
         // ---------------------------------------------------------------------
         return try {
             // 신규 생성 성공 → created=true
-            claimPaymentWriter.insertAndFlush(payment).toResult(created = true)
+            val savedPayment = claimPaymentWriter.insertAndFlush(payment)
+            ClaimPaymentResult.from(savedPayment, created = true)
         } catch (e: DataIntegrityViolationException) {
 
             // -----------------------------------------------------------------
@@ -80,56 +82,31 @@ class ClaimPaymentUseCase(
             val existingPayment = paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
                 ?: throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID)
 
-            validateExistingForIdempotency(existingPayment, command)
+            validatePaymentState(existingPayment)
+            validateIdempotency(existingPayment, command)
 
-            existingPayment.toResult(created = false)
+            ClaimPaymentResult.from(existingPayment, created = false)
         }
     }
 
     /**
-     * 도메인 엔티티(Payment)를 UseCase 결과 DTO로 변환하는 로컬 매퍼
-     * - created=true  -> 신규 생성(201)
-     * - created=false -> 기존 반환(200)
+     * 상태 검증
+     * - 기존 결제가 존재하면, 상태가 유효한지 검증한다.
+     * - 만료되었거나 READY 상태가 아니면, 주문 재사용이 불가능하므로 409 Conflict으로 처리한다.
      */
-    private fun Payment.toResult(created: Boolean): ClaimPaymentResult =
-        ClaimPaymentResult(
-            created = created,
-            paymentKey = this.paymentKey,
-            status = this.status,
-            totalAmount = this.totalAmount.amount,
-            balanceAmount = this.balanceAmount.amount,
-            merchantId = this.merchantId,
-            orderId = this.orderId,
-            orderName = this.orderName,
-            expiresAt = this.expiresAt,
-        )
+    private fun validatePaymentState(existing: Payment) {
+        if (existing.isExpired) throw BusinessException(PaymentErrorCode.ORDER_ID_EXPIRED)
+        if (!existing.isReady) throw BusinessException(PaymentErrorCode.ORDER_ID_NOT_READY)
+    }
 
     /**
      * 멱등성 검증
-     * - 기존 결제가 존재할 때, 요청이 같은지 검증한다.
-     * - 정책에 따라 READY 상태만 멱등 허용할 수도 있다.
-     * - 금액과 주문명이 다르면 정책 위반으로 간주하여 409 예외를 던진다.
+     * - 기존 결제와 요청이 동일한지 검증한다.
+     * - amount 또는 orderName이 다르면, 같은 주문으로 간주할 수 없으므로 409 Conflict으로 처리한다.
      */
-    private fun validateExistingForIdempotency(existing: Payment, command: ClaimPaymentCommand) {
-        // 만료된 결제는 멱등 허용하지 않음
-        if (existing.status == PaymentStatus.EXPIRED) {
-            throw BusinessException(PaymentErrorCode.ORDER_ID_EXPIRED)
-        }
-
-        // READY 상태만 멱등 허용, 나머지는 모두 정책 위반으로 간주
-        if (existing.status != PaymentStatus.READY) {
-            throw BusinessException(PaymentErrorCode.ORDER_ID_NOT_READY)
-        }
-
-        // 금액과 주문명이 다르면 정책 위반으로 간주하여 예외
-        if (existing.totalAmount.amount != command.amount) {
-            throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_AMOUNT_MISMATCH)
-        }
-
-        // 다른 주문명은 정책 위반으로 간주하여 예외
-        if (existing.orderName.trim() != command.orderName.trim()) {
-            throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_NAME_MISMATCH)
-        }
+    private fun validateIdempotency(existing: Payment, command: ClaimPaymentCommand) {
+        if (existing.totalAmount.amount != command.amount) throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_AMOUNT_MISMATCH)
+        if (existing.orderName.trim() != command.orderName.trim()) throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_NAME_MISMATCH)
     }
 
     /**

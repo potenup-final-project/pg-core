@@ -1,9 +1,10 @@
 package com.pgcore.core.presentation.controller
 
 import com.pgcore.core.application.usecase.command.ClaimPaymentUseCase
-import com.pgcore.core.application.usecase.command.dto.ClaimPaymentCommand
 import com.pgcore.core.presentation.controller.dto.ClaimPaymentRequest
 import com.pgcore.core.presentation.controller.dto.ClaimPaymentResponse
+import com.pgcore.core.presentation.controller.dto.toCommand
+import com.pgcore.core.presentation.controller.dto.toResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestMapping
@@ -15,28 +16,12 @@ class PaymentController(
     private val claimPaymentUseCase: ClaimPaymentUseCase,
 ) : PaymentApi {
 
-    override fun claim(req: ClaimPaymentRequest): ResponseEntity<ClaimPaymentResponse> {
-        val result = claimPaymentUseCase.execute(
-            ClaimPaymentCommand(
-                merchantId = req.merchantId,
-                orderId = req.orderId,
-                orderName = req.orderName,
-                amount = req.amount,
-            )
-        )
+    override fun claim(request: ClaimPaymentRequest): ResponseEntity<ClaimPaymentResponse> {
+        val result = claimPaymentUseCase.execute(request.toCommand())
 
-        val body = ClaimPaymentResponse(
-            paymentKey = result.paymentKey,
-            status = result.status,
-            totalAmount = result.totalAmount,
-            balanceAmount = result.balanceAmount,
-            merchantId = result.merchantId,
-            orderId = result.orderId,
-            orderName = result.orderName,
-            expiresAt = result.expiresAt,
-        )
-
+        val body = result.toResponse()
         val status = if (result.created) HttpStatus.CREATED else HttpStatus.OK
+
         return ResponseEntity.status(status).body(body)
     }
 }

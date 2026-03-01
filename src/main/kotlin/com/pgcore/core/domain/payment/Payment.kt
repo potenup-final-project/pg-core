@@ -178,6 +178,12 @@ class Payment protected constructor(
         updated()
     }
 
+    val isExpired: Boolean
+        get() = status == PaymentStatus.EXPIRED
+
+    val isReady: Boolean
+        get() = status == PaymentStatus.READY
+
     private fun updated() {
         updatedAt = LocalDateTime.now()
     }

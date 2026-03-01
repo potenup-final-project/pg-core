@@ -48,6 +48,6 @@ interface PaymentApi {
             description = "결제 준비 요청",
             content = [Content(schema = Schema(implementation = ClaimPaymentRequest::class))]
         )
-        @RequestBody @Valid req: ClaimPaymentRequest
+        @RequestBody @Valid request: ClaimPaymentRequest
     ): ResponseEntity<ClaimPaymentResponse>
 }
