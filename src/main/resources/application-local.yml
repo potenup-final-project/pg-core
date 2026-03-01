@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pgcore
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/pgcore?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
+    username: root
+    password: test1234
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update   # 운영: validate 권장, 개발 초기: update/create-drop 중 선택
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: false
+        jdbc:
+          time_zone: Asia/Seoul
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  jackson:
+    time-zone: Asia/Seoul
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace   # 바인딩 파라미터 로그(hibernate 6)
+    org.springframework.web: info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operationsSorter: method
+    tagsSorter: alpha
