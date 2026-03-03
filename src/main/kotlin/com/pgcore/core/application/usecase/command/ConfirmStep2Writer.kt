@@ -129,7 +129,12 @@ class ConfirmStep2Writer(
      * - payment_transactions: 해당 tx → UNKNOWN
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun markAsUnknown(command: ConfirmPaymentCommand, txId: Long) {
+    fun handleExceptionAndMarkUnknown(
+        command: ConfirmPaymentCommand,
+        txId: Long,
+        isPgSuccess: Boolean?,
+        providerTxId: String?
+    ) {
         // 1) payments CAS: IN_PROGRESS → UNKNOWN
         // affectedRows == 0 이면 이미 다른 경로로 상태가 바뀐 것 → 그대로 둠
         paymentMutationRepository.markUnknown(command.paymentKey)
@@ -141,9 +146,14 @@ class ConfirmStep2Writer(
             PaymentTxStatus.SUCCESS,
             PaymentTxStatus.FAIL,
             PaymentTxStatus.UNKNOWN -> return
-
             else -> {
-                transaction.markUnknown()
+                // PG사에서는 승인 성공했으나 DB 반영 중 에러가 났다면 망취소 대상으로 플래그 ON
+                if (isPgSuccess == true) {
+                    transaction.markNeedNetCancel(providerTxId)
+                } else {
+                    // 통신 타임아웃 등으로 결과를 아예 모르거나(null), 실패했다면 일반 UNKNOWN 마킹
+                    transaction.markUnknown()
+                }
                 paymentTransactionRepository.saveAndFlush(transaction)
             }
         }
