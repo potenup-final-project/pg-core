@@ -55,7 +55,7 @@ class PaymentTransaction protected constructor(
     val requestedAmount: Money,
 
     @Column(name = "pg_tx_id", length = 80)
-    var pgTxId: String? = null,
+    var providerTxId: String? = null,
 
     @Column(name = "idempotency_key", length = 80, nullable = false, updatable = false)
     val idempotencyKey: String,
@@ -72,6 +72,10 @@ class PaymentTransaction protected constructor(
     var failureMessage: String? = null
         protected set
 
+    @Column(name = "need_net_cancel", nullable = false)
+    var needNetCancel: Boolean = false
+        protected set
+
     @Column(name = "attempt_count", nullable = false)
     var attemptCount: Int = 0
         protected set
@@ -85,7 +89,7 @@ class PaymentTransaction protected constructor(
         protected set
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime? = null
+    var updatedAt: LocalDateTime = LocalDateTime.now()
         protected set
 
     companion object {
@@ -141,11 +145,11 @@ class PaymentTransaction protected constructor(
     }
 
     fun markSuccess(
-        pgTxId: String?,
+        providerTxId: String?,
         confirmedAt: LocalDateTime = LocalDateTime.now(),
     ) {
         this.status = PaymentTxStatus.SUCCESS
-        this.pgTxId = pgTxId
+        this.providerTxId = providerTxId
         this.confirmedAt = confirmedAt
         this.failureCode = null
         this.failureMessage = null
@@ -167,6 +171,19 @@ class PaymentTransaction protected constructor(
     ) {
         this.status = PaymentTxStatus.UNKNOWN
         this.nextAttemptAt = nextAttemptAt
+    }
+
+    /**
+     * [치명 불일치 발생 시 호출]
+     * PG사는 승인(Success)되었으나 시스템 원장이 ABORTED 되어 정상적인 반영이 불가능한 경우.
+     * 대사(Reconciliation) 배치가 이 건을 발견하고 PG사에 망취소를 요청할 수 있도록 플래그를 켭니다.
+     */
+    fun markNeedNetCancel(providerTxId: String?) {
+        this.status = PaymentTxStatus.UNKNOWN // 상태는 대사 대상인 UNKNOWN으로 마킹
+        this.providerTxId = providerTxId                  // 망취소 시 반드시 필요하므로 멱살 잡고 저장!
+        this.needNetCancel = true             // 배치 프로그램이 긁어갈 플래그 ON
+        this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
+        this.failureMessage = "원장 확정 실패(ABORTED)로 인한 망취소 대기"
     }
 
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
