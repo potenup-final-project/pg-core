@@ -36,7 +36,7 @@ class WebhookDelivery protected constructor(
     @Column(nullable = false, updatable = false)
     val merchantId: Long,
 
-    @Column(columnDefinition = "TEXT", nullable = false, updatable = false)
+    @Column(columnDefinition = "JSON", nullable = false, updatable = false)
     val payloadSnapshot: String,
 
     status: WebhookDeliveryStatus = WebhookDeliveryStatus.READY,

@@ -28,7 +28,7 @@ class WebhookEndpoint protected constructor(
     val url: String,
 
     // AES-256-GCM 암호화 저장. 절대 로그 출력 금지.
-    @Column(length = 512, nullable = false)
+    @Column(length = 1024, nullable = false)
     val secret: String,
 
     isActive: Boolean = true,
