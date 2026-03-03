@@ -68,7 +68,7 @@ class ConfirmStep1Writer(
 
             // 이미 최종 완료/실패로 끝난 결제
             PaymentStatus.DONE, PaymentStatus.ABORTED, PaymentStatus.CANCEL, PaymentStatus.PARTIAL_CANCEL ->
-                BusinessException(PaymentErrorCode.PAYMENT_ALREADY_COMPLETED)
+                BusinessException(PaymentErrorCode.ALREADY_PROCESSED)
 
             // 확정불가(망취소 대기/UNKNOWN)는 재시도를 막고 조회/대사로 유도하는 게 안전
             PaymentStatus.UNKNOWN -> BusinessException(PaymentErrorCode.IDEMPOTENCY_RETRY_BLOCKED)

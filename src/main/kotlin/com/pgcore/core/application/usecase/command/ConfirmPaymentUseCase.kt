@@ -32,6 +32,8 @@ class ConfirmPaymentUseCase(
 
         // 2) Step 1: 상태 선점 (TX-1)
         val txId = step1Writer.acquireInProgressAndCreateTx(command, payment.paymentId)
+        var isPgSuccess: Boolean? = null
+        var pgProviderTxId: String? = null
 
         try {
             // 3) 외부 API 통신 (TX 밖)
@@ -42,6 +44,9 @@ class ConfirmPaymentUseCase(
                 billingKey = command.billingKey,
                 amount = command.amount
             )
+
+            isPgSuccess = providerResponse.isSuccess
+            pgProviderTxId = providerResponse.providerTxId
 
             // 4) Step 2: 결과 반영 (TX-2)
             val transaction = step2Writer.finalizeTransaction(
@@ -54,7 +59,14 @@ class ConfirmPaymentUseCase(
 
             return ConfirmPaymentResult.from(transaction, command.paymentKey)
         } catch (e: Exception) {
-            runCatching { step2Writer.markAsUnknown(command, txId) }
+            runCatching {
+                step2Writer.handleExceptionAndMarkUnknown(
+                    command = command,
+                    txId = txId,
+                    isPgSuccess = isPgSuccess,
+                    providerTxId = pgProviderTxId
+                )
+            }
             throw e
         }
     }
