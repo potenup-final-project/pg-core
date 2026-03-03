@@ -85,10 +85,6 @@ class IdempotencyFilter(
         }
     }
 
-    // =========================================================================
-    // 비즈니스 로직 분리 (Private Methods)
-    // =========================================================================
-
     private fun tryAcquireProcessingLock(redisKey: String, requestHash: String): Boolean {
         val initialData = IdempotencyData(status = STATUS_PROCESSING, requestHash = requestHash)
         val jsonValue = objectMapper.writeValueAsString(initialData)
@@ -175,10 +171,6 @@ class IdempotencyFilter(
             markAsUnknown(redisKey, requestHash)
         }
     }
-
-    // =========================================================================
-    // 유틸리티 메서드
-    // =========================================================================
 
     private fun generateRequestHash(cachedRequest: CachedBodyHttpServletRequestWrapper): String {
         val bodyBytes = cachedRequest.getCachedBody()

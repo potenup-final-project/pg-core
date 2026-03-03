@@ -209,15 +209,28 @@ enum class PaymentTxStatus {
     fun isRetryable(): Boolean = this == PENDING || this == UNKNOWN
 }
 
-enum class PaymentTxFailureCode {
-    CARD_BLOCKED,
-    CARD_EXPIRED,
-    INSUFFICIENT_FUNDS,
-    LIMIT_EXCEEDED,
-    INVALID_CARD,
-    INVALID_PIN_OR_CVC,
-    FRAUD_SUSPECTED,
-    MERCHANT_NOT_ALLOWED,
-    DUPLICATE_REQUEST,
-    INTERNAL_ERROR,
+enum class PaymentTxFailureCode(val defaultMessage: String) {
+    CARD_BLOCKED("카드 사용이 정지(분실/도난 신고 또는 이용 제한)되어 승인에 실패했습니다."),
+    CARD_EXPIRED("카드 유효기간 만료로 승인에 실패했습니다."),
+    INSUFFICIENT_FUNDS("잔액 부족으로 승인에 실패했습니다."),
+    LIMIT_EXCEEDED("한도 초과로 승인에 실패했습니다."),
+    INVALID_CARD("유효하지 않은 카드 정보로 승인에 실패했습니다."),
+    INVALID_PIN_OR_CVC("비밀번호(PIN) 또는 CVC 오류로 승인에 실패했습니다."),
+    FRAUD_SUSPECTED("부정 사용 의심으로 카드사에서 승인을 거절했습니다."),
+    MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
+    DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
+    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다.");
+
+    fun buildReason(rawCode: String?): String {
+        val suffix = rawCode?.let { " (code=$it)" } ?: ""
+        return this.defaultMessage + suffix
+    }
+
+    companion object {
+        fun fromRawCode(rawFailureCode: String?): PaymentTxFailureCode =
+            rawFailureCode
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { valueOf(it) }.getOrNull() }
+                ?: INTERNAL_ERROR
+    }
 }

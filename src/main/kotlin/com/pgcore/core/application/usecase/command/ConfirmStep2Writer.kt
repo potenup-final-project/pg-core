@@ -55,8 +55,8 @@ class ConfirmStep2Writer(
             if (affectedRows == 0) {
                 handleStateMismatch(command, transaction, false, providerTxId, failureCode)
             } else {
-                val mappedCode = mapFailureCode(failureCode)
-                val reason = buildFailureReason(mappedCode, failureCode)
+                val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
+                val reason = mappedCode.buildReason(failureCode)
 
                 transaction.markFail(mappedCode, reason)
                 paymentTransactionRepository.saveAndFlush(transaction)
@@ -98,9 +98,9 @@ class ConfirmStep2Writer(
                 when (transaction.status) {
                     PaymentTxStatus.FAIL -> transaction
                     else -> {
-                        val mapped = mapFailureCode(failureCode)
-                        val reason = buildFailureReason(mapped, failureCode)
-                        transaction.markFail(mapped, reason)
+                        val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
+                        val reason = mappedCode.buildReason(failureCode)
+                        transaction.markFail(mappedCode, reason)
                         paymentTransactionRepository.saveAndFlush(transaction)
                     }
                 }
@@ -120,47 +120,6 @@ class ConfirmStep2Writer(
                 paymentTransactionRepository.saveAndFlush(transaction)
                 throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
             }
-        }
-    }
-
-    private fun mapFailureCode(rawFailureCode: String?): PaymentTxFailureCode =
-        rawFailureCode
-            ?.takeIf { it.isNotBlank() }
-            ?.let { runCatching { PaymentTxFailureCode.valueOf(it) }.getOrNull() }
-            ?: PaymentTxFailureCode.INTERNAL_ERROR
-
-    private fun buildFailureReason(code: PaymentTxFailureCode, rawFailureCode: String?): String {
-        val raw = rawFailureCode?.let { " (code=$it)" } ?: ""
-        return when (code) {
-            PaymentTxFailureCode.CARD_BLOCKED ->
-                "카드 사용이 정지(분실/도난 신고 또는 이용 제한)되어 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.CARD_EXPIRED ->
-                "카드 유효기간 만료로 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.INSUFFICIENT_FUNDS ->
-                "잔액 부족으로 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.LIMIT_EXCEEDED ->
-                "한도 초과로 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.INVALID_CARD ->
-                "유효하지 않은 카드 정보로 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.INVALID_PIN_OR_CVC ->
-                "비밀번호(PIN) 또는 CVC 오류로 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.FRAUD_SUSPECTED ->
-                "부정 사용 의심으로 카드사에서 승인을 거절했습니다.$raw"
-
-            PaymentTxFailureCode.MERCHANT_NOT_ALLOWED ->
-                "해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다.$raw"
-
-            PaymentTxFailureCode.DUPLICATE_REQUEST ->
-                "중복 승인 요청으로 카드사에서 거절했습니다.$raw"
-
-            PaymentTxFailureCode.INTERNAL_ERROR ->
-                "승인 처리 중 내부 오류가 발생했습니다.$raw"
         }
     }
 
