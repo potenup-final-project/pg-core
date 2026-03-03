@@ -134,7 +134,7 @@ class DeliveryWorkerIntegrationTest {
         )!!
         jdbcTemplate.update(
             """INSERT INTO webhook_deliveries (event_id, endpoint_id, merchant_id, status, attempt_no, next_attempt_at, payload_snapshot, created_at, updated_at)
-               VALUES (4, ?, 1, 'FAILED', 5, NOW(), '{"eventType":"PAYMENT_DONE"}', NOW(), NOW())""",
+               VALUES (4, ?, 1, 'FAILED', 6, NOW(), '{"eventType":"PAYMENT_DONE"}', NOW(), NOW())""",
             endpointId
         )
 

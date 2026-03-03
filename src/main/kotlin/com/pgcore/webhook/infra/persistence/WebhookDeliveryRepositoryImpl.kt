@@ -70,6 +70,8 @@ class WebhookDeliveryRepositoryImpl(
     }
 
     // INSERT IGNORE: 중복 (event_id, endpoint_id) 무시하는 멱등 insert (네이티브 쿼리)
+    // REQUIRED: 외부 TX가 있으면 참여, 없으면 신규 TX 생성 (직접 호출·DeliveryCreationService 양쪽 지원)
+    @Transactional(propagation = Propagation.REQUIRED)
     override fun bulkInsertIgnore(eventId: Long, merchantId: Long, endpointIds: List<Long>, payloadSnapshot: String) {
         if (endpointIds.isEmpty()) return
         endpointIds.forEach { endpointId ->
