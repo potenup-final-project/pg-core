@@ -3,8 +3,8 @@ spring:
     active: local
   datasource:
     url: jdbc:mysql://localhost:3306/pgcore?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-    username: root
-    password: "@bangbang1"
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -35,8 +35,8 @@ spring:
       on-profile: local
   datasource:
     url: jdbc:mysql://localhost:3306/pgcore
-    username: root
-    password: "@bangbang1"
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:

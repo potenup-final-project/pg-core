@@ -1,8 +1,8 @@
-README.md
 .gradle
 build/
 gradle/wrapper/gradle-wrapper.jar
 gradle/wrapper/gradle-wrapper.properties
+!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -39,3 +39,4 @@ out/
 
 ### Kotlin ###
 .kotlin
+/src/main/resources/application-local.yml
