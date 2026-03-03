@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=VALUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: true
+  h2:
+    console:
+      enabled: true
+
+webhook:
+  dispatcher:
+    batch-size: 10
+    interval-ms: 999999999
+  worker:
+    batch-size: 10
+    interval-ms: 999999999
+    max-attempts: 6
+    concurrency-per-endpoint: 2
+    send-threads: 4
+  lease:
+    minutes: 3
+    sweep-interval-ms: 999999999
+  http:
+    connect-timeout-ms: 1000
+    read-timeout-ms: 3000
+  secret:
+    encryption-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    allow-plaintext-fallback: false
+  endpoint:
+    require-https: false
