@@ -2,6 +2,7 @@ package com.pgcore.core.infra.repository
 
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.domain.payment.PaymentTransaction
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
 
 @Repository
@@ -18,6 +19,6 @@ class PaymentTransactionRepositoryImpl(
     }
 
     override fun findById(txId: Long): PaymentTransaction? {
-        return jpaRepository.findById(txId).orElse(null)
+        return jpaRepository.findByIdOrNull(txId)
     }
 }
