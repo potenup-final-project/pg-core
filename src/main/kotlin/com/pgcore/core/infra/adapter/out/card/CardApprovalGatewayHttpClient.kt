@@ -2,6 +2,7 @@ package com.pgcore.core.infra.adapter.out.card
 
 import com.pgcore.core.application.port.out.CardApprovalGateway
 import com.pgcore.core.application.port.out.dto.CardApprovalResult
+import com.pgcore.core.application.port.out.dto.CardApprovalStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
 import org.springframework.beans.factory.annotation.Value
@@ -16,7 +17,7 @@ import java.time.Duration
 @Component
 class CardApprovalGatewayHttpClient(
     restTemplateBuilder: RestTemplateBuilder,
-    @Value("\${mock-card-server.url:http://localhost:8081}") private val mockServerUrl: String
+    @Value("\${mock-card-server.url}") private val mockServerUrl: String
 ) : CardApprovalGateway {
 
     // 가이드라인 적용: 외부 통신 지연으로 인한 스레드 고갈을 막기 위한 타임아웃 강제 설정
@@ -27,6 +28,11 @@ class CardApprovalGatewayHttpClient(
 
     /**
      * 목카드 서버(card-service)로 전송할 내부 전용 DTO
+     * @param providerRequestId: 요청 ID (TX ID 활용)
+     * @param merchantId: 가맹점 ID
+     * @param orderId: 주문 ID
+     * @param amount: 요청 금액
+     * @param billingKey: 빌링키
      */
     data class MockApproveRequest(
         val providerRequestId: String,
@@ -38,13 +44,19 @@ class CardApprovalGatewayHttpClient(
 
     /**
      * 목카드 서버(card-service)로부터 받을 내부 전용 응답 DTO
+     * @param providerRequestId: 요청 ID (TX ID 활용)
+     * @param status: "SUCCESS" 또는 "FAIL"
+     * @param providerTxId: PG사 거래 ID (성공 시), 실패 시 null
+     * @param amount: 요청 금액
+     * @param failureCode: 실패 코드 (실패 시), 성공 시 null
+     * @param processedAt: 처리 시각
      */
     data class MockCardResponse(
         val providerRequestId: String,
-        val status: String,           // "SUCCESS" or "FAIL"
-        val providerTxId: String?,    // null 가능 (실패 시)
+        val status: String,
+        val providerTxId: String?,
         val amount: Long,
-        val failureCode: String?,     // null 가능 (성공 시)
+        val failureCode: String?,
         val processedAt: String
     )
 
@@ -76,8 +88,14 @@ class CardApprovalGatewayHttpClient(
         val response = restTemplate.postForObject(url, entity, MockCardResponse::class.java)
             ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
 
+        val approvalStatus = if (response.status == "SUCCESS") {
+            CardApprovalStatus.SUCCESS
+        } else {
+            CardApprovalStatus.FAIL
+        }
+
         return CardApprovalResult(
-            isSuccess = response.status == "SUCCESS",
+            status = approvalStatus,
             providerTxId = response.providerTxId,
             failureCode = response.failureCode
         )

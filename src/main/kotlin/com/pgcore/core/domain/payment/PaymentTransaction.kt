@@ -1,5 +1,6 @@
 package com.pgcore.core.domain.payment
 
+import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentTransactionErrorCode
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
@@ -207,6 +208,12 @@ enum class PaymentTxStatus {
     UNKNOWN,;
 
     fun isRetryable(): Boolean = this == PENDING || this == UNKNOWN
+
+    fun toPaymentStatus(): PaymentStatus = when (this) {
+        SUCCESS -> PaymentStatus.DONE
+        FAIL -> PaymentStatus.ABORTED
+        UNKNOWN, PENDING -> PaymentStatus.UNKNOWN
+    }
 }
 
 enum class PaymentTxFailureCode(val defaultMessage: String) {

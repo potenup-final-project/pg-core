@@ -1,6 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
 import com.pgcore.core.application.port.out.CardApprovalGateway
+import com.pgcore.core.application.port.out.dto.CardApprovalStatus
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentCommand
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentResult
@@ -32,8 +33,8 @@ class ConfirmPaymentUseCase(
 
         // 2) Step 1: 상태 선점 (TX-1)
         val txId = step1Writer.acquireInProgressAndCreateTx(command, payment.paymentId)
-        var isPgSuccess: Boolean? = null
-        var pgProviderTxId: String? = null
+        var approvalStatus: CardApprovalStatus? = null
+        var providerTxId: String? = null
 
         try {
             // 3) 외부 API 통신 (TX 밖)
@@ -45,16 +46,14 @@ class ConfirmPaymentUseCase(
                 amount = command.amount
             )
 
-            isPgSuccess = providerResponse.isSuccess
-            pgProviderTxId = providerResponse.providerTxId
+            approvalStatus = providerResponse.status
+            providerTxId = providerResponse.providerTxId
 
             // 4) Step 2: 결과 반영 (TX-2)
             val transaction = step2Writer.finalizeTransaction(
                 command = command,
                 txId = txId,
-                isSuccess = providerResponse.isSuccess,
-                providerTxId = providerResponse.providerTxId,
-                failureCode = providerResponse.failureCode
+                approvalResult = providerResponse
             )
 
             return ConfirmPaymentResult.from(transaction, command.paymentKey)
@@ -63,8 +62,8 @@ class ConfirmPaymentUseCase(
                 step2Writer.handleExceptionAndMarkUnknown(
                     command = command,
                     txId = txId,
-                    isPgSuccess = isPgSuccess,
-                    providerTxId = pgProviderTxId
+                    approvalStatus = approvalStatus,
+                    providerTxId = providerTxId,
                 )
             }
             throw e

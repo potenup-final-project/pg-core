@@ -53,28 +53,16 @@ class ConfirmStep1Writer(
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
             ?: return BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
 
-        if (payment.totalAmount != Money(command.amount)) {
-            return BusinessException(
-                PaymentErrorCode.REQUEST_TOTAL_AMOUNT_MISMATCH,
-            )
-        }
+        validateAmount(command, payment.totalAmount)
 
-        return when (payment.status) {
-            // 결제 유효기간 만료 → 새 결제로 재시도 유도
-            PaymentStatus.EXPIRED -> BusinessException(PaymentErrorCode.PAYMENT_EXPIRED)
+        return resolveByStatus(payment.status)
+    }
 
-            // 이미 누군가 선점하고 처리 중
-            PaymentStatus.IN_PROGRESS -> BusinessException(PaymentErrorCode.IDEMPOTENCY_PROCESSING)
-
-            // 이미 최종 완료/실패로 끝난 결제
-            PaymentStatus.DONE, PaymentStatus.ABORTED, PaymentStatus.CANCEL, PaymentStatus.PARTIAL_CANCEL ->
-                BusinessException(PaymentErrorCode.ALREADY_PROCESSED)
-
-            // 확정불가(망취소 대기/UNKNOWN)는 재시도를 막고 조회/대사로 유도하는 게 안전
-            PaymentStatus.UNKNOWN -> BusinessException(PaymentErrorCode.IDEMPOTENCY_RETRY_BLOCKED)
-
-            // READY로 보이지만 CAS가 실패했다면 레이스/읽기 불일치/상태 꼬임 가능성이 있어 안전하게 STATE_LOST로 처리
-            PaymentStatus.READY -> BusinessException(PaymentErrorCode.IDEMPOTENCY_STATE_LOST)
+    private fun validateAmount(command: ConfirmPaymentCommand, totalAmount: Money) {
+        if (totalAmount != Money(command.amount)) {
+            throw BusinessException(PaymentErrorCode.REQUEST_TOTAL_AMOUNT_MISMATCH)
         }
     }
+
+    private fun resolveByStatus(status: PaymentStatus): BusinessException = status.toConfirmException()
 }

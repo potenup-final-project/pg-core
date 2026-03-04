@@ -1,5 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
+import com.pgcore.core.application.port.out.dto.CardApprovalResult
+import com.pgcore.core.application.port.out.dto.CardApprovalStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
@@ -31,35 +33,35 @@ class ConfirmStep2Writer(
     fun finalizeTransaction(
         command: ConfirmPaymentCommand,
         txId: Long,
-        isSuccess: Boolean,
-        providerTxId: String?,
-        failureCode: String?
+        approvalResult: CardApprovalResult
     ): PaymentTransaction {
         val transaction = paymentTransactionRepository.findById(txId)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_TX_NOT_FOUND)
 
-        return if (isSuccess) {
-            // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> DONE)
-            val affectedRows = paymentMutationRepository.finalizeApproveSuccess(command.paymentKey)
+        with(approvalResult) {
+            return if (status == CardApprovalStatus.SUCCESS) {
+                // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> DONE)
+                val affectedRows = paymentMutationRepository.finalizeApproveSuccess(command.paymentKey)
 
-            if (affectedRows == 0) {
-                handleStateMismatch(command, transaction, true, providerTxId, failureCode)
+                if (affectedRows == 0) {
+                    handleStateMismatch(command, transaction, true, providerTxId, failureCode)
+                } else {
+                    transaction.markSuccess(providerTxId)
+                    paymentTransactionRepository.saveAndFlush(transaction)
+                }
             } else {
-                transaction.markSuccess(providerTxId)
-                paymentTransactionRepository.saveAndFlush(transaction)
-            }
-        } else {
-            // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> ABORTED)
-            val affectedRows = paymentMutationRepository.finalizeApproveFail(command.paymentKey)
+                // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> ABORTED)
+                val affectedRows = paymentMutationRepository.finalizeApproveFail(command.paymentKey)
 
-            if (affectedRows == 0) {
-                handleStateMismatch(command, transaction, false, providerTxId, failureCode)
-            } else {
-                val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
-                val reason = mappedCode.buildReason(failureCode)
+                if (affectedRows == 0) {
+                    handleStateMismatch(command, transaction, false, providerTxId, failureCode)
+                } else {
+                    val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
+                    val reason = mappedCode.buildReason(failureCode)
 
-                transaction.markFail(mappedCode, reason)
-                paymentTransactionRepository.saveAndFlush(transaction)
+                    transaction.markFail(mappedCode, reason)
+                    paymentTransactionRepository.saveAndFlush(transaction)
+                }
             }
         }
     }
@@ -116,7 +118,11 @@ class ConfirmStep2Writer(
             }
 
             else -> {
-                transaction.markUnknown()
+                if (isPgSuccess == true) {
+                    transaction.markNeedNetCancel(providerTxId)
+                } else {
+                    transaction.markUnknown()
+                }
                 paymentTransactionRepository.saveAndFlush(transaction)
                 throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
             }
@@ -132,7 +138,7 @@ class ConfirmStep2Writer(
     fun handleExceptionAndMarkUnknown(
         command: ConfirmPaymentCommand,
         txId: Long,
-        isPgSuccess: Boolean?,
+        approvalStatus: CardApprovalStatus?,
         providerTxId: String?
     ) {
         // 1) payments CAS: IN_PROGRESS → UNKNOWN
@@ -146,9 +152,9 @@ class ConfirmStep2Writer(
             PaymentTxStatus.SUCCESS,
             PaymentTxStatus.FAIL,
             PaymentTxStatus.UNKNOWN -> return
-            else -> {
+            PaymentTxStatus.PENDING -> {
                 // PG사에서는 승인 성공했으나 DB 반영 중 에러가 났다면 망취소 대상으로 플래그 ON
-                if (isPgSuccess == true) {
+                if (approvalStatus == CardApprovalStatus.SUCCESS) {
                     transaction.markNeedNetCancel(providerTxId)
                 } else {
                     // 통신 타임아웃 등으로 결과를 아예 모르거나(null), 실패했다면 일반 UNKNOWN 마킹

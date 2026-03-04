@@ -3,16 +3,14 @@ package com.pgcore.core.application.usecase.command
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.usecase.command.dto.ClaimPaymentCommand
 import com.pgcore.core.application.usecase.command.dto.ClaimPaymentResult
-import com.pgcore.core.domain.enums.PaymentStatus
+import com.pgcore.core.common.PaymentKeyGenerator
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.util.UUID
 
 @Service
 class ClaimPaymentUseCase(
@@ -37,7 +35,7 @@ class ClaimPaymentUseCase(
 
         // 2) 신규 생성: TTL 30분 부여
         val payment = Payment.create(
-            paymentKey = generatePaymentKey(),
+            paymentKey = PaymentKeyGenerator.generate(),
             merchantId = command.merchantId,
             orderId = command.orderId,
             orderName = command.orderName,
@@ -79,12 +77,4 @@ class ClaimPaymentUseCase(
         if (existing.totalAmount.amount != command.amount) throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_AMOUNT_MISMATCH)
         if (existing.orderName.trim() != command.orderName.trim()) throw BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID_NAME_MISMATCH)
     }
-
-    /**
-     * 결제키 생성
-     * - 현재는 UUID 기반
-     * - 향후 ULID/KSUID 등으로 교체 가능(필요하면 별도 Generator로 분리)
-     */
-    private fun generatePaymentKey(): String =
-        "pay_" + UUID.randomUUID().toString().replace("-", "")
 }
