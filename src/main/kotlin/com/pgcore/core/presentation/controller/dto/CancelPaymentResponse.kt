@@ -6,7 +6,7 @@ import com.pgcore.core.domain.enums.PaymentStatus
 data class CancelPaymentResponse(
     val paymentKey: String,
     val status: PaymentStatus,
-    val amount: Long,
+    val totalAmount: Long,
     val balanceAmount: Long
 )
 
@@ -14,6 +14,6 @@ fun CancelPaymentResult.toResponse(): CancelPaymentResponse =
     CancelPaymentResponse(
         paymentKey = paymentKey,
         status = status,
-        amount = amount,
+        totalAmount = totalAmount,
         balanceAmount = balanceAmount
     )

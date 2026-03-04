@@ -1,6 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
 import com.pgcore.core.application.port.out.CardCancelGateway
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
@@ -45,8 +46,7 @@ class CancelPaymentUseCase(
 
         // 3) Step 1: 상태 변경 없이 PENDING 이력 생성 (TX-1)
         val txId = step1Writer.createCancelTx(command, payment.paymentId)
-
-        var isPgSuccess: Boolean? = null
+        var cancelStatus: CardProviderResponseStatus? = null
 
         try {
             // 4) 외부 API 통신 (TX 밖)
@@ -57,14 +57,13 @@ class CancelPaymentUseCase(
                 reason = command.reason
             )
 
-            isPgSuccess = providerResponse.isSuccess
+            cancelStatus = providerResponse.status
 
             // 5) Step 2: 결과 반영 (TX-2)
-            val transaction = step2Writer.finalizeCancel(
+            step2Writer.finalizeCancel(
                 command = command,
                 txId = txId,
-                isSuccess = providerResponse.isSuccess,
-                failureCode = providerResponse.failureCode
+                cancelStatus = providerResponse
             )
 
             // 최신 원장을 다시 조회하여 결과를 반환
@@ -73,14 +72,14 @@ class CancelPaymentUseCase(
             return CancelPaymentResult(
                 paymentKey = command.paymentKey,
                 status = updatedPayment.status,
-                amount = updatedPayment.totalAmount.amount,
+                totalAmount = updatedPayment.totalAmount.amount,
                 balanceAmount = updatedPayment.balanceAmount.amount,
             )
         } catch (e: Exception) {
             runCatching {
                 step2Writer.handleExceptionAndMarkUnknown(
                     txId = txId,
-                    isPgSuccess = isPgSuccess,
+                    cancelStatus = cancelStatus,
                     providerTxId = null
                 )
             }
