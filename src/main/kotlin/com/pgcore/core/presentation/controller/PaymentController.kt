@@ -1,7 +1,10 @@
 package com.pgcore.core.presentation.controller
 
+import com.pgcore.core.application.usecase.command.CancelPaymentUseCase
 import com.pgcore.core.application.usecase.command.ClaimPaymentUseCase
 import com.pgcore.core.application.usecase.command.ConfirmPaymentUseCase
+import com.pgcore.core.presentation.controller.dto.CancelPaymentRequest
+import com.pgcore.core.presentation.controller.dto.CancelPaymentResponse
 import com.pgcore.core.presentation.controller.dto.ClaimPaymentRequest
 import com.pgcore.core.presentation.controller.dto.ClaimPaymentResponse
 import com.pgcore.core.presentation.controller.dto.ConfirmPaymentRequest
@@ -17,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/v1/payments")
 class PaymentController(
     private val claimPaymentUseCase: ClaimPaymentUseCase,
-    private val confirmPaymentUseCase: ConfirmPaymentUseCase
+    private val confirmPaymentUseCase: ConfirmPaymentUseCase,
+    private val cancelPaymentUseCase: CancelPaymentUseCase
 ) : PaymentApi {
 
     override fun claim(
@@ -34,6 +38,17 @@ class PaymentController(
         request: ConfirmPaymentRequest
     ): ResponseEntity<ConfirmPaymentResponse> {
         val result = confirmPaymentUseCase.execute(
+            request.toCommand(paymentKey, idempotencyKey)
+        )
+        return ResponseEntity.ok(result.toResponse())
+    }
+
+    override fun cancel(
+        paymentKey: String,
+        idempotencyKey: String,
+        request: CancelPaymentRequest
+    ): ResponseEntity<CancelPaymentResponse> {
+        val result = cancelPaymentUseCase.execute(
             request.toCommand(paymentKey, idempotencyKey)
         )
         return ResponseEntity.ok(result.toResponse())
