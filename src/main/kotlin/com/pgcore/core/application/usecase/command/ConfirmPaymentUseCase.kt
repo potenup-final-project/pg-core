@@ -1,7 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
 import com.pgcore.core.application.port.out.CardApprovalGateway
-import com.pgcore.core.application.port.out.dto.CardApprovalStatus
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentCommand
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentResult
@@ -33,7 +33,7 @@ class ConfirmPaymentUseCase(
 
         // 2) Step 1: 상태 선점 (TX-1)
         val txId = step1Writer.acquireInProgressAndCreateTx(command, payment.paymentId)
-        var approvalStatus: CardApprovalStatus? = null
+        var approvalStatus: CardProviderResponseStatus? = null
         var providerTxId: String? = null
 
         try {
