@@ -1,13 +1,13 @@
 package com.pgcore.webhook.application.service
 
 import com.pgcore.core.exception.BusinessException
-import com.pgcore.webhook.application.usecase.command.CreateTestDeliveryUseCase
 import com.pgcore.webhook.application.usecase.command.CreateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.UpdateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.dto.CreateEndpointCommand
 import com.pgcore.webhook.application.usecase.command.dto.UpdateEndpointCommand
 import com.pgcore.webhook.application.usecase.query.ListWebhookEndpointsUseCase
 import com.pgcore.webhook.application.usecase.query.dto.EndpointResult
+import com.pgcore.webhook.application.usecase.query.dto.EndpointResult.Companion.toResult
 import com.pgcore.webhook.application.usecase.repository.WebhookDeliveryRepository
 import com.pgcore.webhook.application.usecase.repository.WebhookEndpointRepository
 import com.pgcore.webhook.domain.WebhookEndpoint
@@ -24,10 +24,9 @@ class WebhookEndpointService(
     private val endpointRepo: WebhookEndpointRepository,
     private val deliveryRepo: WebhookDeliveryRepository,
     private val secretEncryptor: SecretEncryptor,
-    @Value("\${webhook.endpoint.require-https:true}") private val requireHttps: Boolean,
+    @Value("\${webhook.endpoint.require-https}") private val requireHttps: Boolean,
 ) : CreateWebhookEndpointUseCase,
     UpdateWebhookEndpointUseCase,
-    CreateTestDeliveryUseCase,
     ListWebhookEndpointsUseCase {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -63,33 +62,11 @@ class WebhookEndpointService(
         command.isActive?.let { active ->
             if (active) endpoint.activate() else endpoint.deactivate()
         }
-
-        val saved = endpointRepo.save(endpoint)
-        log.info("[WebhookEndpointService] 수정: endpointId={} isActive={}", saved.endpointId, saved.isActive)
-        return saved.toResult()
+        log.info("[WebhookEndpointService] 수정: endpointId={} isActive={}", endpoint.endpointId, endpoint.isActive)
+        return endpoint.toResult()
     }
 
-    @Transactional
-    override fun createTestDelivery(merchantId: Long, endpointId: Long) {
-        val endpoint = endpointRepo.findByMerchantIdAndEndpointId(merchantId, endpointId)
-            ?: throw BusinessException(WebhookErrorCode.ENDPOINT_NOT_FOUND)
-
-        val testPayload = """{"eventType":"WEBHOOK_TEST","message":"test delivery from PG core","endpointId":${endpoint.endpointId}}"""
-
-        deliveryRepo.bulkInsertIgnore(
-            eventId = testEventIdSeq.decrementAndGet(),
-            merchantId = merchantId,
-            endpointIds = listOf(endpointId),
-            payloadSnapshot = testPayload,
-        )
-        log.info("[WebhookEndpointService] 테스트 delivery 생성: merchantId={} endpointId={}", merchantId, endpointId)
-    }
-
-    override fun list(merchantId: Long): List<EndpointResult> =
+    override fun findWebhookEndPointResultList(merchantId: Long): List<EndpointResult> =
         endpointRepo.findByMerchantId(merchantId).map { it.toResult() }
 
-    private fun WebhookEndpoint.toResult() = EndpointResult(
-        endpointId = endpointId, merchantId = merchantId, url = url,
-        isActive = isActive, createdAt = createdAt, updatedAt = updatedAt,
-    )
 }

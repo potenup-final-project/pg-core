@@ -1,5 +1,6 @@
 package com.pgcore.webhook.application.usecase.query.dto
 
+import com.pgcore.webhook.domain.WebhookEndpoint
 import java.time.LocalDateTime
 
 data class EndpointResult(
@@ -9,4 +10,11 @@ data class EndpointResult(
     val isActive: Boolean,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
-)
+) {
+    companion object {
+        fun WebhookEndpoint.toResult() = EndpointResult(
+            endpointId = endpointId, merchantId = merchantId, url = url,
+            isActive = isActive, createdAt = createdAt, updatedAt = updatedAt,
+        )
+    }
+}

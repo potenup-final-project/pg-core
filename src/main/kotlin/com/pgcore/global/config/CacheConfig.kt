@@ -13,13 +13,13 @@ import java.time.Duration
 
 @Configuration
 class CacheConfig(
-    @Value("\${webhook.limiter.cache-name:webhook-endpoint-semaphores}")
+    @Value("\${webhook.limiter.cache-name}")
     private val cacheName: String,
-    @Value("\${webhook.limiter.maximum-size:100000}")
+    @Value("\${webhook.limiter.maximum-size}")
     private val maximumSize: Long,
-    @Value("\${webhook.limiter.expire-after-access-seconds:3600}")
+    @Value("\${webhook.limiter.expire-after-access-seconds}")
     private val expireAfterAccessSeconds: Long,
-    @Value("\${webhook.worker.concurrency-per-endpoint:3}")
+    @Value("\${webhook.worker.concurrency-per-endpoint}")
     private val concurrencyPerEndpoint: Int,
 ) {
     @Bean(name = ["endpointSemaphoreCache"])

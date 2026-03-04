@@ -51,15 +51,15 @@ class WebhookEndpoint protected constructor(
 
     fun activate() {
         isActive = true
-        touch()
+        updateTime()
     }
 
     fun deactivate() {
         isActive = false
-        touch()
+        updateTime()
     }
 
-    private fun touch() {
+    private fun updateTime() {
         updatedAt = LocalDateTime.now()
     }
 

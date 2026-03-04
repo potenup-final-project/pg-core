@@ -8,4 +8,5 @@ interface WebhookEndpointRepository {
     fun existsByMerchantIdAndUrl(merchantId: Long, url: String): Boolean
     fun findByMerchantIdAndEndpointId(merchantId: Long, endpointId: Long): WebhookEndpoint?
     fun save(endpoint: WebhookEndpoint): WebhookEndpoint
+    fun findByMerchantIdAndEndpointIds(merchantId: Long, endpointIds: Collection<Long>): List<WebhookEndpoint>
 }

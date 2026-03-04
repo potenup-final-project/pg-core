@@ -46,4 +46,17 @@ class WebhookEndpointRepositoryImpl(
 
     override fun save(endpoint: WebhookEndpoint): WebhookEndpoint =
         springDataRepo.save(endpoint)
+
+    override fun findByMerchantIdAndEndpointIds(
+        merchantId: Long,
+        endpointIds: Collection<Long>
+    ): List<WebhookEndpoint> {
+        if (endpointIds.isEmpty()) return emptyList()
+
+        return queryFactory.selectFrom(qEndpoint)
+            .where(
+                qEndpoint.merchantId.eq(merchantId),
+                qEndpoint.endpointId.`in`(endpointIds)
+            ).fetch()
+    }
 }
