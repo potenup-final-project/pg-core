@@ -12,12 +12,13 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 
 // HMAC-SHA256 서명 포함 웹훅 HTTP POST 전송 클라이언트 (secret은 절대 로그 출력 금지)
 @Component
 class WebhookHttpClient(
-    @Value("\${webhook.http.connect-timeout-ms:1000}") private val connectTimeoutMs: Long,
-    @Value("\${webhook.http.read-timeout-ms:3000}") private val readTimeoutMs: Long,
+    @Value("\${webhook.http.connect-timeout-ms}") private val connectTimeoutMs: Long,
+    @Value("\${webhook.http.read-timeout-ms}") private val readTimeoutMs: Long,
 ) : WebhookSendClient {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -36,7 +37,7 @@ class WebhookHttpClient(
     override fun send(
         url: String,
         secret: String,
-        eventId: Long,
+        eventId: UUID,
         payloadSnapshot: String,
     ): WebhookSendResult {
         val rawBody = payloadSnapshot.toByteArray(Charsets.UTF_8)

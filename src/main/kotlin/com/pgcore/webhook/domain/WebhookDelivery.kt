@@ -11,6 +11,7 @@ import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(
@@ -28,7 +29,7 @@ class WebhookDelivery protected constructor(
     val deliveryId: Long = 0,
 
     @Column(nullable = false, updatable = false)
-    val eventId: Long,
+    val eventId: UUID,
 
     @Column(nullable = false, updatable = false)
     val endpointId: Long,
@@ -74,7 +75,7 @@ class WebhookDelivery protected constructor(
 
     companion object {
         fun create(
-            eventId: Long,
+            eventId: UUID,
             endpointId: Long,
             merchantId: Long,
             payloadSnapshot: String,
@@ -91,7 +92,7 @@ class WebhookDelivery protected constructor(
         lastHttpStatus = httpStatus
         lastResponseMs = responseMs
         lastError = null
-        updateWebhook()
+        updateTime()
     }
 
     fun markFailed(httpStatus: Int?, errorCode: String, nextAt: LocalDateTime) {
@@ -99,17 +100,17 @@ class WebhookDelivery protected constructor(
         lastHttpStatus = httpStatus
         lastError = errorCode
         nextAttemptAt = nextAt
-        updateWebhook()
+        updateTime()
     }
 
     fun markDead(httpStatus: Int?, errorCode: String) {
         status = WebhookDeliveryStatus.DEAD
         lastHttpStatus = httpStatus
         lastError = errorCode
-        updateWebhook()
+        updateTime()
     }
 
-    private fun updateWebhook() {
+    private fun updateTime() {
         updatedAt = LocalDateTime.now()
     }
 }

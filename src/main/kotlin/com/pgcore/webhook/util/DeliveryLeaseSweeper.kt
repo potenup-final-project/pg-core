@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component
 class DeliveryLeaseSweeper(
     private val deliveryRepository: WebhookDeliveryRepository,
     private val metrics: WebhookMetrics,
-    @Value("\${webhook.lease.minutes:3}") private val leaseMinutes: Int,
+    @Value("\${webhook.lease.minutes}") private val leaseMinutes: Int,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(fixedDelayString = "\${webhook.lease.sweep-interval-ms:30000}")
+    @Scheduled(fixedDelayString = "\${webhook.lease.sweep-interval-ms}")
     fun sweep() {
         try {
             val recovered = deliveryRepository.recoverExpiredLeases(leaseMinutes)

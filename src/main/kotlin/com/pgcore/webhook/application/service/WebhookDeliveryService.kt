@@ -1,19 +1,20 @@
 package com.pgcore.webhook.application.service
 
 import com.pgcore.core.utils.BackoffCalculator
-import com.pgcore.outbox.application.usecase.repository.OutboxEventRepository
+import com.pgcore.webhook.application.EndpointConcurrencyLimiter
+import com.pgcore.webhook.application.service.dto.EndpointKey
 import com.pgcore.webhook.application.usecase.command.DispatchWebhookDeliveriesUseCase
 import com.pgcore.webhook.application.usecase.command.SendWebhookDeliveriesUseCase
 import com.pgcore.webhook.application.usecase.repository.WebhookDeliveryRepository
 import com.pgcore.webhook.application.usecase.repository.WebhookEndpointRepository
-import com.pgcore.webhook.application.EndpointConcurrencyLimiter
 import com.pgcore.webhook.application.usecase.repository.WebhookSendClient
 import com.pgcore.webhook.application.usecase.repository.dto.ClaimedDelivery
+import com.pgcore.webhook.domain.WebhookEndpoint
 import com.pgcore.webhook.util.RetryClassifier
 import com.pgcore.webhook.util.SecretEncryptor
 import com.pgcore.webhook.util.WebhookMetrics
-import org.slf4j.LoggerFactory
 import jakarta.annotation.PreDestroy
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -26,16 +27,15 @@ import java.util.concurrent.Executors
 class WebhookDeliveryService(
     private val deliveryRepository: WebhookDeliveryRepository,
     private val endpointRepository: WebhookEndpointRepository,
-    private val outboxRepository: OutboxEventRepository,
     private val sendClient: WebhookSendClient,
     private val metrics: WebhookMetrics,
     private val secretEncryptor: SecretEncryptor,
     private val concurrencyLimiter: EndpointConcurrencyLimiter,
-    @Value("\${webhook.worker.max-attempts:6}")
+    @Value("\${webhook.worker.max-attempts}")
     private val maxAttempts: Int,
-    @Value("\${webhook.worker.send-threads:10}")
+    @Value("\${webhook.worker.send-threads}")
     sendThreads: Int,
-    @Value("\${webhook.secret.allow-plaintext-fallback:false}")
+    @Value("\${webhook.secret.allow-plaintext-fallback}")
     private val allowPlaintextFallback: Boolean,
 ) : DispatchWebhookDeliveriesUseCase, SendWebhookDeliveriesUseCase {
 
@@ -58,7 +58,7 @@ class WebhookDeliveryService(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     override fun dispatch(eventId: Long, merchantId: Long, payload: String): Int {
         val activeEndpoints = endpointRepository.findByMerchantIdAndIsActiveTrue(merchantId)
-        if (activeEndpoints.isEmpty()) return 0
+        if (activeEndpoints.isEmpty()) return activeEndpoints.size
 
         deliveryRepository.bulkInsertIgnore(
             eventId = eventId,
@@ -66,7 +66,6 @@ class WebhookDeliveryService(
             endpointIds = activeEndpoints.map { it.endpointId },
             payloadSnapshot = payload,
         )
-        outboxRepository.markPublished(eventId, null)
         return activeEndpoints.size
     }
 
@@ -75,25 +74,31 @@ class WebhookDeliveryService(
         val claimed = deliveryRepository.claimDueBatch(batchSize)
         if (claimed.isEmpty()) return
 
-        log.debug("[WebhookDeliveryService] claimed {} deliveries", claimed.size)
+        val endpointMap = preloadEndpoints(claimed)
+
         val futures = claimed.map { delivery ->
             CompletableFuture.runAsync(
-                { processSingle(delivery) },
+                { processSingle(delivery, endpointMap) },
                 sendExecutor,
             )
         }
         CompletableFuture.allOf(*futures.toTypedArray()).join()
     }
 
-    private fun processSingle(delivery: ClaimedDelivery) {
+    private fun processSingle(delivery: ClaimedDelivery, endpointMap: Map<EndpointKey, WebhookEndpoint>) {
+        // HTTP 시도 없이 건너뜀 → attempt_no를 원복하여 조기 DEAD 방지
         if (!concurrencyLimiter.tryAcquire(delivery.endpointId)) {
-            // HTTP 시도 없이 건너뜀 → attempt_no를 원복하여 조기 DEAD 방지
-            log.debug("[WebhookDeliveryService] deliveryId={} endpointId={} 동시성 제한 초과 → claim 원복", delivery.deliveryId, delivery.endpointId)
             deliveryRepository.revertClaim(delivery.deliveryId)
+            log.debug(
+                "[WebhookDeliveryService] deliveryId={} endpointId={} 동시성 제한 초과 → claim 원복",
+                delivery.deliveryId,
+                delivery.endpointId
+            )
             return
         }
         try {
-            sendAndRecord(delivery)
+            val endpoint = endpointMap[EndpointKey(delivery.merchantId, delivery.endpointId)]?:return deadBecauseEndpointMissing(delivery)
+            sendAndRecord(delivery,endpoint)
         } finally {
             concurrencyLimiter.release(delivery.endpointId)
         }
@@ -114,11 +119,7 @@ class WebhookDeliveryService(
         }
     }
 
-    private fun sendAndRecord(delivery: ClaimedDelivery) {
-        val endpoint = endpointRepository
-            .findByMerchantIdAndEndpointId(delivery.merchantId, delivery.endpointId)
-            ?: return deadBecauseEndpointMissing(delivery)
-
+    private fun sendAndRecord(delivery: ClaimedDelivery, endpoint: WebhookEndpoint) {
         val startMs = System.currentTimeMillis()
 
         try {
@@ -158,7 +159,7 @@ class WebhookDeliveryService(
     }
 
     private fun success(delivery: ClaimedDelivery, httpStatus: Int, responseMs: Long) {
-        deliveryRepository.markSuccess(delivery.deliveryId, httpStatus, responseMs)
+        deliveryRepository.markSuccessNewTransaction(delivery.deliveryId, httpStatus, responseMs)
         metrics.recordDeliverySuccess()
         log.debug(
             "[WebhookDeliveryService] deliveryId={} SUCCESS status={} ms={}",
@@ -171,21 +172,39 @@ class WebhookDeliveryService(
     }
 
     private fun dead(delivery: ClaimedDelivery, httpStatus: Int?, errorCode: String) {
-        deliveryRepository.markDead(delivery.deliveryId, httpStatus, errorCode)
+        deliveryRepository.markDeadNewTransaction(delivery.deliveryId, httpStatus, errorCode)
         metrics.recordDeliveryDead()
         log.warn("[WebhookDeliveryService] deliveryId={} DEAD status={}", delivery.deliveryId, httpStatus)
     }
 
     private fun handleRetry(delivery: ClaimedDelivery, httpStatus: Int?, errorCode: String) {
         if (delivery.attemptNo >= maxAttempts) {
-            deliveryRepository.markDead(delivery.deliveryId, httpStatus, "$errorCode:$ERROR_MAX_ATTEMPTS_EXCEEDED")
+            deliveryRepository.markDeadNewTransaction(delivery.deliveryId, httpStatus, "$errorCode:$ERROR_MAX_ATTEMPTS_EXCEEDED")
             metrics.recordDeliveryDead()
-            log.warn("[WebhookDeliveryService] deliveryId={} DEAD (attempt={} >= max={})", delivery.deliveryId, delivery.attemptNo, maxAttempts)
+            log.warn(
+                "[WebhookDeliveryService] deliveryId={} DEAD (attempt={} >= max={})",
+                delivery.deliveryId,
+                delivery.attemptNo,
+                maxAttempts
+            )
         } else {
             val nextAt = BackoffCalculator.nextAttemptAt(delivery.attemptNo)
-            deliveryRepository.markFailed(delivery.deliveryId, httpStatus, errorCode, nextAt)
+            deliveryRepository.markFailedNewTransaction(delivery.deliveryId, httpStatus, errorCode, nextAt)
             metrics.recordDeliveryRetry()
-            log.debug("[WebhookDeliveryService] deliveryId={} FAILED attempt={} nextAt={}", delivery.deliveryId, delivery.attemptNo, nextAt)
+            log.debug(
+                "[WebhookDeliveryService] deliveryId={} FAILED attempt={} nextAt={}",
+                delivery.deliveryId,
+                delivery.attemptNo,
+                nextAt
+            )
         }
+    }
+
+    private fun preloadEndpoints(claimed: List<ClaimedDelivery>): Map<EndpointKey, WebhookEndpoint> {
+        return claimed.groupBy { it.merchantId }
+            .flatMap { (merchantId, deliveries) ->
+                val endpointIds = deliveries.map { it.endpointId }.toSet()
+                endpointRepository.findByMerchantIdAndEndpointIds(merchantId, endpointIds)
+            }.associateBy { EndpointKey(it.merchantId, it.endpointId) }
     }
 }

@@ -93,7 +93,7 @@ class WebhookDeliveryRepositoryImpl(
 
     // REQUIRES_NEW: delivery를 SUCCESS로 전이
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    override fun markSuccess(deliveryId: Long, httpStatus: Int, responseMs: Long) {
+    override fun markSuccessNewTransaction(deliveryId: Long, httpStatus: Int, responseMs: Long) {
         queryFactory.update(qDelivery)
             .set(qDelivery.status, WebhookDeliveryStatus.SUCCESS)
             .set(qDelivery.lastHttpStatus, httpStatus)
@@ -106,7 +106,7 @@ class WebhookDeliveryRepositoryImpl(
 
     // REQUIRES_NEW: delivery를 FAILED로 전이, last_http_status는 항상 갱신
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    override fun markFailed(deliveryId: Long, httpStatus: Int?, errorCode: String, nextAt: LocalDateTime) {
+    override fun markFailedNewTransaction(deliveryId: Long, httpStatus: Int?, errorCode: String, nextAt: LocalDateTime) {
         val clause = queryFactory.update(qDelivery)
             .set(qDelivery.status, WebhookDeliveryStatus.FAILED)
             .set(qDelivery.lastError, errorCode)
@@ -121,7 +121,7 @@ class WebhookDeliveryRepositoryImpl(
 
     // REQUIRES_NEW: delivery를 영구 실패(DEAD) 처리, last_http_status는 항상 갱신
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    override fun markDead(deliveryId: Long, httpStatus: Int?, errorCode: String) {
+    override fun markDeadNewTransaction(deliveryId: Long, httpStatus: Int?, errorCode: String) {
         val clause = queryFactory.update(qDelivery)
             .set(qDelivery.status, WebhookDeliveryStatus.DEAD)
             .set(qDelivery.lastError, errorCode)

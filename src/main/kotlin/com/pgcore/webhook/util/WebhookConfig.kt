@@ -16,7 +16,7 @@ import org.springframework.scheduling.annotation.EnableScheduling
 class WebhookConfig {
 
     // 재시도 시 rawBody가 동일하게 유지되도록 직렬화 설정 고정
-    @Bean("webhookObjectMapper")
+    @Bean
     fun webhookObjectMapper(): ObjectMapper = ObjectMapper()
         .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
         .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)

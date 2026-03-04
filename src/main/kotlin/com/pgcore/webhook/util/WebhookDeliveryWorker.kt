@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component
 @Component
 class WebhookDeliveryWorker(
     private val sendWebhookDeliveriesUseCase: SendWebhookDeliveriesUseCase,
-    @Value("\${webhook.worker.batch-size:50}") private val batchSize: Int,
+    @Value("\${webhook.worker.batch-size}") private val batchSize: Int,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(fixedDelayString = "\${webhook.worker.interval-ms:500}")
+    @Scheduled(fixedDelayString = "\${webhook.worker.interval-ms}")
     fun process() {
         try {
             sendWebhookDeliveriesUseCase.sendBatch(batchSize)
