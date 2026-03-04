@@ -3,6 +3,8 @@ package com.pgcore.core.infra.repository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.domain.payment.PaymentTransaction
 import org.springframework.data.repository.findByIdOrNull
+import com.pgcore.core.domain.payment.PaymentTxStatus
+import com.pgcore.core.domain.payment.PaymentTxType
 import org.springframework.stereotype.Repository
 
 @Repository
@@ -21,4 +23,10 @@ class PaymentTransactionRepositoryImpl(
     override fun findById(txId: Long): PaymentTransaction? {
         return jpaRepository.findByIdOrNull(txId)
     }
+
+    override fun findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(
+        paymentId: Long,
+        type: PaymentTxType,
+        status: PaymentTxStatus
+    ): PaymentTransaction? = jpaRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(paymentId, type, status)
 }
