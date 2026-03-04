@@ -17,6 +17,6 @@ interface CardCancelGateway {
         providerRequestId: String,
         originalProviderRequestId: String,
         amount: Long,
-        reason: String?
+        reason: String
     ): CardCancelResult
 }
