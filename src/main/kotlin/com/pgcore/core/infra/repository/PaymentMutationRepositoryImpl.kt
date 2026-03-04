@@ -23,4 +23,8 @@ class PaymentMutationRepositoryImpl(
     override fun markUnknown(paymentKey: String): Int {
         return jpaRepository.markUnknown(paymentKey)
     }
+
+    override fun applyCancel(paymentKey: String, cancelAmount: Long): Int {
+        return jpaRepository.applyCancel(paymentKey, cancelAmount)
+    }
 }
