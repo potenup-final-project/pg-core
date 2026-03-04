@@ -1,5 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
+import com.pgcore.core.application.port.out.dto.CardCancelResult
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
@@ -20,26 +22,27 @@ class CancelStep2Writer(
     fun finalizeCancel(
         command: CancelPaymentCommand,
         txId: Long,
-        isSuccess: Boolean,
-        failureCode: String?
+        cancelStatus: CardCancelResult,
     ): PaymentTransaction {
         val transaction = paymentTransactionRepository.findById(txId)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_TX_NOT_FOUND)
 
-        if (isSuccess) {
-            val affectedRows = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
+        with(cancelStatus) {
+            if (status == CardProviderResponseStatus.SUCCESS) {
+                val affectedRows = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
 
-            if (affectedRows == 0) {
-                // 잔액 부족 등으로 DB 업데이트 실패 -> 망취소(대사) 대상 마킹
-                // 취소 응답에 providerTxId가 없으므로 망취소 처리 시 txId 자체를 식별자로 사용하도록 null을 넘김
-                transaction.markNeedNetCancel(null)
+                if (affectedRows == 0) {
+                    // 잔액 부족 등으로 DB 업데이트 실패 -> 망취소(대사) 대상 마킹
+                    // 취소 응답에 providerTxId가 없으므로 망취소 처리 시 txId 자체를 식별자로 사용하도록 null을 넘김
+                    transaction.markNeedNetCancel(null)
+                } else {
+                    transaction.markSuccess(null)
+                }
             } else {
-                transaction.markSuccess(null)
+                val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
+                val reason = mappedCode.buildReason(failureCode)
+                transaction.markFail(mappedCode, reason)
             }
-        } else {
-            val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
-            val reason = mappedCode.buildReason(failureCode)
-            transaction.markFail(mappedCode, reason)
         }
 
         return paymentTransactionRepository.saveAndFlush(transaction)
@@ -48,12 +51,12 @@ class CancelStep2Writer(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun handleExceptionAndMarkUnknown(
         txId: Long,
-        isPgSuccess: Boolean?,
+        cancelStatus: CardProviderResponseStatus?,
         providerTxId: String? // 필요시 로깅용
     ) {
         val transaction = paymentTransactionRepository.findById(txId) ?: return
 
-        if (isPgSuccess == true) {
+        if (cancelStatus == CardProviderResponseStatus.SUCCESS) {
             transaction.markNeedNetCancel(providerTxId)
         } else {
             transaction.markUnknown()

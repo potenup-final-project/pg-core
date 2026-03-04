@@ -1,6 +1,6 @@
 package com.pgcore.core.application.port.out.dto
 
-enum class CardApprovalStatus {
+enum class CardProviderResponseStatus {
     SUCCESS,
     FAIL;
 }

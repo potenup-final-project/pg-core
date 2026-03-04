@@ -60,11 +60,16 @@ class CancelPaymentUseCase(
             cancelStatus = providerResponse.status
 
             // 5) Step 2: 결과 반영 (TX-2)
-            step2Writer.finalizeCancel(
+            val transaction = step2Writer.finalizeCancel(
                 command = command,
                 txId = txId,
                 cancelStatus = providerResponse
             )
+
+            if (transaction.needNetCancel) {
+                // PG사 승인 성공했으나 DB 반영 실패 -> 망취소(대사) 대상 마킹
+                throw BusinessException(PaymentErrorCode.PAYMENT_STATE_MISMATCH)
+            }
 
             // 최신 원장을 다시 조회하여 결과를 반환
             val updatedPayment = paymentRepository.findByPaymentKey(command.paymentKey)!!
