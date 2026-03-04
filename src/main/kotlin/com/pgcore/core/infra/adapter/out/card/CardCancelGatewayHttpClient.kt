@@ -44,7 +44,7 @@ class CardCancelGatewayHttpClient(
         providerRequestId: String,
         originalProviderRequestId: String,
         amount: Long,
-        reason: String?
+        reason: String
     ): CardCancelResult {
         val url = "$mockServerUrl/provider/cancel"
 
