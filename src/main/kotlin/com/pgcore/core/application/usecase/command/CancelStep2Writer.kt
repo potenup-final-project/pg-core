@@ -66,13 +66,13 @@ class CancelStep2Writer(
         when {
             // (a) 취소 불가 상태
             !payment.status.isCancellable() -> {
-                transaction.markUnknown()
+                transaction.markNeedNetCancel(null)
                 throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
             }
 
             // (b) 잔액 부족
             payment.balanceAmount.amount < command.amount -> {
-                transaction.markUnknown()
+                transaction.markNeedNetCancel(null)
                 throw BusinessException(PaymentErrorCode.EXCEED_CANCEL_AMOUNT)
             }
 
