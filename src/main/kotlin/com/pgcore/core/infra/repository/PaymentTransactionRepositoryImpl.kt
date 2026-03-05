@@ -29,4 +29,7 @@ class PaymentTransactionRepositoryImpl(
         type: PaymentTxType,
         status: PaymentTxStatus
     ): PaymentTransaction? = jpaRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(paymentId, type, status)
+
+    override fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean =
+        jpaRepository.existsSuccessCancelTx(paymentId, amount, idempotencyKey)
 }

@@ -13,4 +13,7 @@ interface PaymentTransactionRepository {
         type: PaymentTxType,
         status: PaymentTxStatus
     ): PaymentTransaction?
+
+    // 동일 멱등키 + 금액으로 이미 성공한 취소 TX가 존재하는지 확인
+    fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean
 }
