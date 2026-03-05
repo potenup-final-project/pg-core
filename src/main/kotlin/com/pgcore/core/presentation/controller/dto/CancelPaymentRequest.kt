@@ -1,7 +1,6 @@
 package com.pgcore.core.presentation.controller.dto
 
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
-import com.pgcore.core.domain.enums.PaymentStatus
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull

@@ -2,6 +2,7 @@ package com.pgcore.core.infra.adapter.out.card
 
 import com.pgcore.core.application.port.out.CardCancelGateway
 import com.pgcore.core.application.port.out.dto.CardCancelResult
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
 import org.springframework.beans.factory.annotation.Value
@@ -20,8 +21,8 @@ class CardCancelGatewayHttpClient(
 ) : CardCancelGateway {
 
     private val restTemplate: RestTemplate = restTemplateBuilder
-        .setConnectTimeout(Duration.ofSeconds(1))
-        .setReadTimeout(Duration.ofSeconds(3))
+        .connectTimeout(Duration.ofSeconds(1))
+        .readTimeout(Duration.ofSeconds(3))
         .build()
 
     data class MockCancelRequest(
@@ -61,8 +62,14 @@ class CardCancelGatewayHttpClient(
         val response = restTemplate.postForObject(url, entity, MockCancelResponse::class.java)
             ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
 
+        val cancelStatus = if (response.status == "SUCCESS") {
+            CardProviderResponseStatus.SUCCESS
+        } else {
+            CardProviderResponseStatus.FAIL
+        }
+
         return CardCancelResult(
-            isSuccess = response.status == "SUCCESS",
+            status = cancelStatus,
             canceledAmount = response.canceledAmount,
             remainingAmount = response.remainingAmount,
             failureCode = response.failureCode
