@@ -74,20 +74,27 @@ class WebhookDeliveryRepositoryImpl(
     @Transactional(propagation = Propagation.REQUIRED)
     override fun bulkInsertIgnore(eventId: Long, merchantId: Long, endpointIds: List<Long>, payloadSnapshot: String) {
         if (endpointIds.isEmpty()) return
-        endpointIds.forEach { endpointId ->
-            @Suppress("UNCHECKED_CAST")
-            entityManager.createNativeQuery(
+        endpointIds.chunked(BULK_INSERT_CHUNK_SIZE).forEach { chunk ->
+            val valuesSql = chunk.indices.joinToString(",") { index ->
+                "(:eventId, :endpointId$index, :merchantId, 'READY', $INITIAL_ATTEMPT_NO, NOW(), :payload, NOW(), NOW())"
+            }
+
+            val query = entityManager.createNativeQuery(
                 """
                 INSERT IGNORE INTO webhook_deliveries
                     (event_id, endpoint_id, merchant_id, status, attempt_no, next_attempt_at, payload_snapshot, created_at, updated_at)
-                VALUES (:eventId, :endpointId, :merchantId, 'READY', $INITIAL_ATTEMPT_NO, NOW(), :payload, NOW(), NOW())
+                VALUES $valuesSql
                 """.trimIndent()
             )
                 .setParameter("eventId", eventId)
-                .setParameter("endpointId", endpointId)
                 .setParameter("merchantId", merchantId)
                 .setParameter("payload", payloadSnapshot)
-                .executeUpdate()
+
+            chunk.forEachIndexed { index, endpointId ->
+                query.setParameter("endpointId$index", endpointId)
+            }
+
+            query.executeUpdate()
         }
     }
 
@@ -172,6 +179,7 @@ class WebhookDeliveryRepositoryImpl(
         private const val JPA_LOCK_TIMEOUT_HINT = "jakarta.persistence.lock.timeout"
         private const val SKIP_LOCKED = -2
         private const val INITIAL_ATTEMPT_NO = 0
+        private const val BULK_INSERT_CHUNK_SIZE = 500
         private const val ERROR_LEASE_EXPIRED = "LEASE_EXPIRED"
     }
 }
