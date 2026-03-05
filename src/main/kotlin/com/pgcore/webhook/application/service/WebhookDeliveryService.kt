@@ -1,6 +1,7 @@
 package com.pgcore.webhook.application.service
 
 import com.pgcore.core.utils.BackoffCalculator
+import com.pgcore.outbox.application.usecase.repository.OutboxEventRepository
 import com.pgcore.webhook.application.EndpointConcurrencyLimiter
 import com.pgcore.webhook.application.service.dto.EndpointKey
 import com.pgcore.webhook.application.usecase.command.DispatchWebhookDeliveriesUseCase
@@ -27,6 +28,7 @@ import java.util.concurrent.Executors
 class WebhookDeliveryService(
     private val deliveryRepository: WebhookDeliveryRepository,
     private val endpointRepository: WebhookEndpointRepository,
+    private val outboxRepository: OutboxEventRepository,
     private val sendClient: WebhookSendClient,
     private val metrics: WebhookMetrics,
     private val secretEncryptor: SecretEncryptor,
@@ -66,6 +68,7 @@ class WebhookDeliveryService(
             endpointIds = activeEndpoints.map { it.endpointId },
             payloadSnapshot = payload,
         )
+        outboxRepository.markPublished(eventId, null)
         return activeEndpoints.size
     }
 
