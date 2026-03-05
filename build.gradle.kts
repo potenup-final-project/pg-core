@@ -33,7 +33,7 @@ dependencies {
     runtimeOnly("com.mysql:mysql-connector-j")
 
     // --- API Docs (Swagger / OpenAPI) ---
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16")
 
     // --- Testing ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
