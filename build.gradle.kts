@@ -59,6 +59,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "mockito-core")
     }
+
+    // --- Redis ---
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 }
 
 kotlin {
