@@ -69,10 +69,12 @@ enum class PaymentStatus {
     }
 
     fun requireCancelable() {
-        if (this != DONE && this != PARTIAL_CANCEL) {
+        if (!isCancellable()) {
             throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
         }
     }
+
+    fun isCancellable(): Boolean = this == DONE || this == PARTIAL_CANCEL
 
     fun toConfirmException(): BusinessException = when (this) {
         // 결제 유효기간 만료 → 새 결제로 재시도 유도

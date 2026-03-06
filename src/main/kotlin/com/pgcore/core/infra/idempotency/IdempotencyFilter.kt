@@ -24,6 +24,8 @@ class IdempotencyFilter(
     private val includePatterns = listOf(
         "/v1/payments/confirm",
         "/v1/payments/**/confirm",
+        "/v1/payments/cancel",
+        "/v1/payments/**/cancel"
     )
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {

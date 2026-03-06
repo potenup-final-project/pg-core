@@ -43,7 +43,7 @@ enum class PaymentErrorCode(
     REQUEST_TOTAL_AMOUNT_MISMATCH(HttpStatus.CONFLICT, "PAY-0501", "요청된 금액과 결제 원장의 금액이 일치하지 않습니다."),
     REQUEST_ORDER_ID_MISMATCH(HttpStatus.CONFLICT, "PAY-0502", "요청된 주문 번호와 결제 원장의 주문 번호가 일치하지 않습니다."),
     ALREADY_PROCESSED(HttpStatus.CONFLICT, "PAY-0503", "이미 성공 또는 실패 처리된 결제입니다."),
-    PAYMENT_STATE_MISMATCH(HttpStatus.CONFLICT, "PAY-0504", "결제 원장 불일치: PG 승인 상태와 시스템 원장 상태가 다릅니다. (대사/망취소 대상)"),
+    PAYMENT_STATE_MISMATCH(HttpStatus.CONFLICT, "PAY-0504", "결제 원장 불일치: 카드사 승인 상태와 시스템 원장 상태가 다릅니다. (대사/망취소 대상)"),
 
     // ===== 멱등성 (Idempotency) 관련 오류 =====
     IDEMPOTENCY_KEY_MISSING(HttpStatus.BAD_REQUEST, "PAY-0601", "Idempotency-Key 헤더는 필수입니다."),
