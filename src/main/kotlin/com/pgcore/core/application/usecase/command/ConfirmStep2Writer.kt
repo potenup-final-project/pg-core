@@ -1,5 +1,8 @@
 package com.pgcore.core.application.usecase.command
 
+import com.pgcore.core.application.port.out.PaymentEvent
+import com.pgcore.core.application.port.out.PaymentEventPublisher
+import com.pgcore.core.application.port.out.PaymentEventType
 import com.pgcore.core.application.port.out.dto.CardApprovalResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
@@ -20,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional
 class ConfirmStep2Writer(
     private val paymentRepository: PaymentRepository,
     private val paymentMutationRepository: PaymentMutationRepository,
-    private val paymentTransactionRepository: PaymentTransactionRepository
+    private val paymentTransactionRepository: PaymentTransactionRepository,
+    private val paymentEventPublisher: PaymentEventPublisher
 ) {
 
     /**
@@ -47,7 +51,20 @@ class ConfirmStep2Writer(
                     handleStateMismatch(command, transaction, true, providerTxId, failureCode)
                 } else {
                     transaction.markSuccess(providerTxId)
-                    paymentTransactionRepository.saveAndFlush(transaction)
+                    val savedTx = paymentTransactionRepository.saveAndFlush(transaction)
+                    
+                    // 결제 승인 성공 이벤트 발행
+                    paymentEventPublisher.publish(
+                        PaymentEvent(
+                            paymentKey = command.paymentKey,
+                            merchantId = command.merchantId,
+                            orderId = command.orderId,
+                            type = PaymentEventType.CONFIRM,
+                            status = PaymentStatus.DONE,
+                            amount = command.amount
+                        )
+                    )
+                    savedTx
                 }
             } else {
                 // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> ABORTED)

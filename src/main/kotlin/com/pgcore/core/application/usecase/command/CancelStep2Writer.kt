@@ -1,14 +1,19 @@
 package com.pgcore.core.application.usecase.command
 
+import com.pgcore.core.application.port.out.PaymentEvent
+import com.pgcore.core.application.port.out.PaymentEventPublisher
+import com.pgcore.core.application.port.out.PaymentEventType
 import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
+import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
+import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import org.springframework.stereotype.Component
@@ -20,6 +25,7 @@ class CancelStep2Writer(
     private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val paymentRepository: PaymentRepository,
+    private val paymentEventPublisher: PaymentEventPublisher
 ) {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun finalizeCancel(
@@ -46,7 +52,24 @@ class CancelStep2Writer(
             }
         }
 
-        return paymentTransactionRepository.saveAndFlush(transaction)
+        val savedTx = paymentTransactionRepository.saveAndFlush(transaction)
+
+        // 결제 취소 성공 시 이벤트 발행 (멱등 성공 포함)
+        if (savedTx.status == PaymentTxStatus.SUCCESS) {
+            val payment = paymentRepository.findByPaymentKey(command.paymentKey)
+            paymentEventPublisher.publish(
+                PaymentEvent(
+                    paymentKey = command.paymentKey,
+                    merchantId = command.merchantId,
+                    orderId = payment?.orderId ?: "",
+                    type = PaymentEventType.CANCEL,
+                    status = payment?.status ?: PaymentStatus.CANCEL,
+                    amount = command.amount
+                )
+            )
+        }
+
+        return savedTx
     }
 
     /**
