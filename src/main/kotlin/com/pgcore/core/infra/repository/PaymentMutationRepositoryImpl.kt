@@ -102,4 +102,8 @@ class PaymentMutationRepositoryImpl(
             .toInt()
             .also { em.clear() }
     }
+
+    override fun applyCancel(paymentKey: String, cancelAmount: Long): Int {
+        return jpaRepository.applyCancel(paymentKey, cancelAmount)
+    }
 }
