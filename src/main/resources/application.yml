@@ -42,6 +42,15 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  cloud:
+    aws:
+      sqs:
+        queue-name: payment-event-queue
+      region:
+        static: ap-northeast-2
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
 
 webhook:
   dispatcher:
