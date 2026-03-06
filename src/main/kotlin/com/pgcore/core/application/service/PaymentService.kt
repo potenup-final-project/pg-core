@@ -20,6 +20,7 @@ import com.pgcore.core.application.usecase.command.dto.ClaimPaymentResult
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentCommand
 import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentResult
 import com.pgcore.core.common.PaymentKeyGenerator
+import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.PaymentTxStatus
@@ -40,7 +41,7 @@ class PaymentService(
     private val confirmStep2Writer: ConfirmStep2Writer,
     private val cardCancelGateway: CardCancelGateway,
     private val cancelStep1Writer: CancelStep1Writer,
-    private val cancelStep2Writer: CancelStep2Writer
+    private val cancelStep2Writer: CancelStep2Writer,
 ) : ClaimPaymentUseCase, ConfirmPaymentUseCase, CancelPaymentUseCase {
 
     /**
@@ -88,15 +89,21 @@ class PaymentService(
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
 
-        if (payment.totalAmount != Money(command.amount)) {
-            throw BusinessException(PaymentErrorCode.REQUEST_TOTAL_AMOUNT_MISMATCH)
+        validateConfirmRequest(payment, command)
+
+        // 2) 서비스 레이어 멱등성 처리: 이미 성공한 결제라면 기존 결과 반환
+        // (Redis 캐시 만료나 다른 Idempotency-Key로 요청이 왔을 때를 대비한 최종 안전장치)
+        if (payment.status == PaymentStatus.DONE) {
+            val successTx = paymentTransactionRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(
+                paymentId = payment.paymentId,
+                type = PaymentTxType.APPROVE,
+                status = PaymentTxStatus.SUCCESS
+            ) ?: throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
+
+            return ConfirmPaymentResult.from(successTx, command.paymentKey)
         }
 
-        if (payment.orderId != command.orderId) {
-            throw BusinessException(PaymentErrorCode.REQUEST_ORDER_ID_MISMATCH)
-        }
-
-        // 2) Step 1: 상태 선점 (TX-1)
+        // 3) Step 1: 상태 선점 (TX-1)
         val txId = confirmStep1Writer.acquireInProgressAndCreateTx(command, payment.paymentId)
         var approvalStatus: CardProviderResponseStatus? = null
         var providerTxId: String? = null
@@ -143,10 +150,7 @@ class PaymentService(
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
 
-        payment.status.requireCancelable()
-        if (payment.balanceAmount < Money(command.amount)) {
-            throw BusinessException(PaymentErrorCode.EXCEED_CANCEL_AMOUNT)
-        }
+        validateCancelRequest(payment, command)
 
         // 2) 원거래 승인(APPROVE) 성공 이력 조회 (originalProviderRequestId 추출용)
         val originalApproveTx = paymentTransactionRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(
@@ -186,7 +190,8 @@ class PaymentService(
             }
 
             // 최신 원장을 다시 조회하여 결과를 반환
-            val updatedPayment = paymentRepository.findByPaymentKey(command.paymentKey)!!
+            val updatedPayment = paymentRepository.findByPaymentKey(command.paymentKey)
+                ?: throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
 
             return CancelPaymentResult(
                 paymentKey = command.paymentKey,
@@ -203,6 +208,22 @@ class PaymentService(
                 )
             }
             throw e
+        }
+    }
+
+    private fun validateConfirmRequest(payment: Payment, command: ConfirmPaymentCommand) {
+        if (payment.totalAmount != Money(command.amount)) {
+            throw BusinessException(PaymentErrorCode.REQUEST_TOTAL_AMOUNT_MISMATCH)
+        }
+        if (payment.orderId != command.orderId) {
+            throw BusinessException(PaymentErrorCode.REQUEST_ORDER_ID_MISMATCH)
+        }
+    }
+
+    private fun validateCancelRequest(payment: Payment, command: CancelPaymentCommand) {
+        payment.status.requireCancelable()
+        if (payment.balanceAmount < Money(command.amount)) {
+            throw BusinessException(PaymentErrorCode.EXCEED_CANCEL_AMOUNT)
         }
     }
 
