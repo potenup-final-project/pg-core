@@ -8,7 +8,6 @@ import com.pgcore.webhook.application.usecase.command.dto.UpdateEndpointCommand
 import com.pgcore.webhook.application.usecase.query.ListWebhookEndpointsUseCase
 import com.pgcore.webhook.application.usecase.query.dto.EndpointResult
 import com.pgcore.webhook.application.usecase.query.dto.EndpointResult.Companion.toResult
-import com.pgcore.webhook.application.usecase.repository.WebhookDeliveryRepository
 import com.pgcore.webhook.application.usecase.repository.WebhookEndpointRepository
 import com.pgcore.webhook.domain.WebhookEndpoint
 import com.pgcore.webhook.domain.exception.WebhookErrorCode
@@ -22,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong
 @Service
 class WebhookEndpointService(
     private val endpointRepo: WebhookEndpointRepository,
-    private val deliveryRepo: WebhookDeliveryRepository,
     private val secretEncryptor: SecretEncryptor,
     @Value("\${webhook.endpoint.require-https}") private val requireHttps: Boolean,
 ) : CreateWebhookEndpointUseCase,

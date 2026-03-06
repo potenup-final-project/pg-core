@@ -19,20 +19,7 @@ webhook:
   dispatcher:
     batch-size: 10
     interval-ms: 999999999
-  worker:
-    batch-size: 10
-    interval-ms: 999999999
-    max-attempts: 6
-    concurrency-per-endpoint: 2
-    send-threads: 4
-  lease:
-    minutes: 3
-    sweep-interval-ms: 999999999
-  http:
-    connect-timeout-ms: 1000
-    read-timeout-ms: 3000
   secret:
     encryption-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-    allow-plaintext-fallback: false
   endpoint:
     require-https: false

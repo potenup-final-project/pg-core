@@ -1,7 +1,5 @@
 package com.pgcore.webhook.util
 
-import com.pgcore.core.exception.BusinessException
-import com.pgcore.webhook.domain.exception.WebhookErrorCode
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.security.SecureRandom
@@ -10,42 +8,36 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-// AES-256-GCM 기반 webhook secret 암복호화 (저장 포맷: base64(iv || ciphertext+tag))
 @Component
 class SecretEncryptor(
     @Value("\${webhook.secret.encryption-key}") encryptionKeyBase64: String,
 ) {
-    private val key: SecretKeySpec
+    private val key = SecretKeySpec(Base64.getDecoder().decode(encryptionKeyBase64), "AES")
+    private val secureRandom = SecureRandom()
 
-    companion object {
-        private const val ALGORITHM = "AES/GCM/NoPadding"
-        private const val IV_LENGTH = 12
-        private const val TAG_BITS = 128
-        private const val KEY_ALGORITHM = "AES"
-    }
+    fun encrypt(plainText: String): String {
+        val iv = ByteArray(12)
+        secureRandom.nextBytes(iv)
 
-    init {
-        val keyBytes = Base64.getDecoder().decode(encryptionKeyBase64)
-        if(keyBytes.size != 32) {
-            throw BusinessException(WebhookErrorCode.ENCRYPTION_KEY_SIZE_INVALID)
-        }
-        key = SecretKeySpec(keyBytes, KEY_ALGORITHM)
-    }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
+        val cipherText = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
 
-    fun encrypt(plaintext: String): String {
-        val iv = ByteArray(IV_LENGTH).also { SecureRandom().nextBytes(it) }
-        val cipher = Cipher.getInstance(ALGORITHM)
-        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv))
-        val ciphertext = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
-        return Base64.getEncoder().encodeToString(iv + ciphertext)
+        val packed = ByteArray(iv.size + cipherText.size)
+        System.arraycopy(iv, 0, packed, 0, iv.size)
+        System.arraycopy(cipherText, 0, packed, iv.size, cipherText.size)
+        return Base64.getEncoder().encodeToString(packed)
     }
 
     fun decrypt(encrypted: String): String {
-        val combined = Base64.getDecoder().decode(encrypted)
-        val iv = combined.copyOfRange(0, IV_LENGTH)
-        val ciphertext = combined.copyOfRange(IV_LENGTH, combined.size)
-        val cipher = Cipher.getInstance(ALGORITHM)
-        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv))
-        return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+        val packed = Base64.getDecoder().decode(encrypted)
+        require(packed.size > 12) { "invalid encrypted secret" }
+
+        val iv = packed.copyOfRange(0, 12)
+        val cipherText = packed.copyOfRange(12, packed.size)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
+        return String(cipher.doFinal(cipherText), Charsets.UTF_8)
     }
 }

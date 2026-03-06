@@ -28,7 +28,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-cache")
     // --- Kotlin ---
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
@@ -39,9 +38,6 @@ dependencies {
     implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")
     kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
     kapt("jakarta.annotation:jakarta.annotation-api")
-
-    // --- Cache ---
-    implementation("com.github.ben-manes.caffeine:caffeine")
 
     // --- API Docs (Swagger / OpenAPI) ---
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
@@ -78,4 +74,8 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+springBoot {
+    mainClass.set("com.pgcore.PgcoreApplicationKt")
 }
