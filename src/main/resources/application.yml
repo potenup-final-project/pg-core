@@ -47,28 +47,9 @@ webhook:
   dispatcher:
     batch-size: ${DISPATCHER_BATCH_SIZE}
     interval-ms: ${DISPATCHER_INTERVAL_MS}
-  limiter:
-    type: local       # local | redis
-    cache-name: ${CACHE_NAME}
-    maximum-size: ${LIMITER_MAX}
-    expire-after-access-seconds: ${CACHE_EXPIRE_AFTER}
-  worker:
-    batch-size: ${WORKER_BATCH_SIZE}
-    interval-ms: ${WORKER_INTERVAL_MS}
-    max-attempts: ${WORKER_MAX_ATTEMPTS}
-    concurrency-per-endpoint: ${WORKER_CONCURRENCY_ENDPOINT}
-    send-threads: ${WORKER_SEND_THREAD}
-  lease:
-    minutes: ${LEASE_MINUTES}
-    sweep-interval-ms: ${SWEEP_INTERVAL_MS}
-  http:
-    connect-timeout-ms: ${HTTP_CONN_TIMEOUT}
-    read-timeout-ms: ${HTTP_READ_TIMEOUT}
   secret:
     # AES-256-GCM key: base64(32 bytes). 반드시 WEBHOOK_SECRET_KEY 환경변수로 주입해야 함. 미설정 시 기동 실패.
     encryption-key: ${WEBHOOK_SECRET_KEY}
-    # 마이그레이션 완료 후 반드시 false로 전환. true는 과도기 한정.
-    allow-plaintext-fallback: ${WEBHOOK_ALLOW_PLAINTEXT}
   endpoint:
     # 실서비스는 반드시 true. HTTP 허용이 필요한 경우(로컬 테스트)에만 false로 변경.
     require-https: ${WEBHOOK_REQUIRE_HTTPS}
