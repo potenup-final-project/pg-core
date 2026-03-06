@@ -60,6 +60,9 @@ dependencies {
 
     // --- Redis ---
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+    // --- AWS SQS ---
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs:3.3.0")
 }
 
 kotlin {
