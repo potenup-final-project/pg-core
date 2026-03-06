@@ -9,11 +9,11 @@ import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 
 @Component
-class SqsPaymentEventListener(
+class SqsPaymentMessageSender(
     private val sqsTemplate: SqsTemplate,
     @Value("\${spring.cloud.aws.sqs.queue-name}") private val queueName: String
 ) {
-    private val log = LoggerFactory.getLogger(SqsPaymentEventListener::class.java)
+    private val log = LoggerFactory.getLogger(SqsPaymentMessageSender::class.java)
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handlePaymentEvent(event: PaymentEvent) {
