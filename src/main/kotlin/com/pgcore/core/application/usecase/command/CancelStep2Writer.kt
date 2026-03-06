@@ -9,6 +9,7 @@ import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
+import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -50,11 +51,6 @@ class CancelStep2Writer(
 
     /**
      * applyCancel UPDATE가 0건일 때 원인을 판별하여 분기합니다.
-     *
-     * (a) 상태 불일치 → 취소 불가 상태 예외 (409)
-     * (b) 잔액 부족   → 취소 금액 초과 예외 (400)
-     * (c) 멱등 처리   → 이미 동일 취소가 반영된 경우 SUCCESS로 수렴
-     * (d) 그 외       → 망취소 대상 마킹
      */
     private fun handleApplyCancelFailure(
         command: CancelPaymentCommand,
@@ -63,25 +59,26 @@ class CancelStep2Writer(
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
 
+        val moneyToCancel = Money(command.amount)
+
+        val isNotCancelable = !payment.canCancelWith(moneyToCancel)
+        val isAlreadyProcessed = paymentTransactionRepository.existsSuccessCancelTx(
+            payment.paymentId, command.amount, command.idempotencyKey
+        )
+
         when {
-            // (a) 취소 불가 상태
-            !payment.status.isCancellable() -> {
+            // 취소 불가능 상태 (상태 불일치/잔액 부족 등): 망취소 마킹 후 도메인 예외 발생
+            isNotCancelable -> {
                 transaction.markNeedNetCancel(null)
-                throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
+                payment.applyCancel(moneyToCancel)
             }
 
-            // (b) 잔액 부족
-            payment.balanceAmount.amount < command.amount -> {
-                transaction.markNeedNetCancel(null)
-                throw BusinessException(PaymentErrorCode.EXCEED_CANCEL_AMOUNT)
-            }
-
-            // (c) 멱등: 이미 동일 취소 TX가 SUCCESS로 존재하는 경우
-            paymentTransactionRepository.existsSuccessCancelTx(payment.paymentId, command.amount, command.idempotencyKey) -> {
+            // (b) 멱등성: 이미 성공한 동일 취소 건이 존재하면 성공으로 간주
+            isAlreadyProcessed -> {
                 transaction.markSuccess(null)
             }
 
-            // (d) 원인 불명 (DB 장애/락 타임아웃 등) → 망취소 대상
+            // (c) 기타 원인 불명 (DB 장애 등): 안전하게 망취소 대상으로 분류
             else -> {
                 transaction.markNeedNetCancel(null)
             }
