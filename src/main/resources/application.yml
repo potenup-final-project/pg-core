@@ -67,15 +67,15 @@ mock-card-server:
 
 outbox:
   relay:
-    enabled: ${OUTBOX_RELAY_ENABLED:false}
-    publisher: ${OUTBOX_RELAY_PUBLISHER:noop}
-    batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
-    interval-ms: ${OUTBOX_RELAY_INTERVAL_MS:1000}
-    lease-minutes: ${OUTBOX_RELAY_LEASE_MINUTES:3}
-    lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS:10000}
-    max-retry: ${MAX_RETRY_WEBHOOK:6}
+    enabled: ${OUTBOX_RELAY_ENABLED}
+    publisher: ${OUTBOX_RELAY_PUBLISHER}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE}
+    interval-ms: ${OUTBOX_RELAY_INTERVAL_MS}
+    lease-minutes: ${OUTBOX_RELAY_LEASE_MINUTES}
+    lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS}
+    max-retry: ${MAX_RETRY_WEBHOOK}
     sqs:
       queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL:}
 
 aws:
-  region: ${AWS_REGION:ap-northeast-2}
+  region: ${AWS_REGION}
