@@ -28,8 +28,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+
     // --- Kotlin ---
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // --- DB Driver (MySQL) ---
     runtimeOnly("com.mysql:mysql-connector-j")
@@ -40,7 +42,7 @@ dependencies {
     kapt("jakarta.annotation:jakarta.annotation-api")
 
     // --- API Docs (Swagger / OpenAPI) ---
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16")
 
     // --- Monitoring ---
     implementation("io.micrometer:micrometer-registry-prometheus")

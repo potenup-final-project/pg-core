@@ -2,7 +2,7 @@ package com.pgcore.core.infra.adapter.out.card
 
 import com.pgcore.core.application.port.out.CardApprovalGateway
 import com.pgcore.core.application.port.out.dto.CardApprovalResult
-import com.pgcore.core.application.port.out.dto.CardApprovalStatus
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
 import org.springframework.beans.factory.annotation.Value
@@ -89,9 +89,9 @@ class CardApprovalGatewayHttpClient(
             ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
 
         val approvalStatus = if (response.status == "SUCCESS") {
-            CardApprovalStatus.SUCCESS
+            CardProviderResponseStatus.SUCCESS
         } else {
-            CardApprovalStatus.FAIL
+            CardProviderResponseStatus.FAIL
         }
 
         return CardApprovalResult(

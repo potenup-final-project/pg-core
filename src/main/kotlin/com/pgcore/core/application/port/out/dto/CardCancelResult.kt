@@ -1,10 +1,11 @@
 package com.pgcore.core.application.port.out.dto
 
 /**
- * 카드 승인 결과
+ * 카드 취소 결과
  */
-data class CardApprovalResult(
+data class CardCancelResult(
     val status: CardProviderResponseStatus,
-    val providerTxId: String?,
+    val canceledAmount: Long?,
+    val remainingAmount: Long?,
     val failureCode: String?
 )

@@ -121,6 +121,9 @@ class Payment protected constructor(
         }
     }
 
+    fun canCancelWith(cancelAmount: Money): Boolean =
+        status.isCancellable() && balanceAmount >= cancelAmount
+
     fun applyCancel(cancelAmount: Money) {
         if (cancelAmount.isZero()) {
             throw BusinessException(PaymentErrorCode.INVALID_CANCEL_AMOUNT)
