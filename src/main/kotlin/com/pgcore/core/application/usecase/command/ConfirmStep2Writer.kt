@@ -12,6 +12,10 @@ import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.core.infra.outbox.application.service.WebhookEvent
+import com.pgcore.core.infra.outbox.domain.OutboxEventType
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -20,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional
 class ConfirmStep2Writer(
     private val paymentRepository: PaymentRepository,
     private val paymentMutationRepository: PaymentMutationRepository,
-    private val paymentTransactionRepository: PaymentTransactionRepository
+    private val paymentTransactionRepository: PaymentTransactionRepository,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val objectMapper: ObjectMapper,
 ) {
 
     /**
@@ -47,6 +53,11 @@ class ConfirmStep2Writer(
                     handleStateMismatch(command, transaction, true, providerTxId, failureCode)
                 } else {
                     transaction.markSuccess(providerTxId)
+                    publishWebhookEvent(
+                        command = command,
+                        eventType = OutboxEventType.PAYMENT_DONE,
+                        providerTxId = providerTxId,
+                    )
                     paymentTransactionRepository.saveAndFlush(transaction)
                 }
             } else {
@@ -60,6 +71,12 @@ class ConfirmStep2Writer(
                     val reason = mappedCode.buildReason(failureCode)
 
                     transaction.markFail(mappedCode, reason)
+                    publishWebhookEvent(
+                        command = command,
+                        eventType = OutboxEventType.PAYMENT_FAILED,
+                        providerTxId = providerTxId,
+                        failureCode = failureCode,
+                    )
                     paymentTransactionRepository.saveAndFlush(transaction)
                 }
             }
@@ -84,6 +101,11 @@ class ConfirmStep2Writer(
                     transaction
                 } else {
                     transaction.markSuccess(providerTxId)
+                    publishWebhookEvent(
+                        command = command,
+                        eventType = OutboxEventType.PAYMENT_DONE,
+                        providerTxId = providerTxId,
+                    )
                     paymentTransactionRepository.saveAndFlush(transaction)
                 }
             }
@@ -103,6 +125,12 @@ class ConfirmStep2Writer(
                         val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
                         val reason = mappedCode.buildReason(failureCode)
                         transaction.markFail(mappedCode, reason)
+                        publishWebhookEvent(
+                            command = command,
+                            eventType = OutboxEventType.PAYMENT_FAILED,
+                            providerTxId = providerTxId,
+                            failureCode = failureCode,
+                        )
                         paymentTransactionRepository.saveAndFlush(transaction)
                     }
                 }
@@ -164,4 +192,39 @@ class ConfirmStep2Writer(
             }
         }
     }
+
+    private fun publishWebhookEvent(
+        command: ConfirmPaymentCommand,
+        eventType: OutboxEventType,
+        providerTxId: String? = null,
+        failureCode: String? = null,
+    ) {
+        val payload = objectMapper.writeValueAsString(
+            WebhookOutboxPayload(
+                paymentKey = command.paymentKey,
+                orderId = command.orderId,
+                amount = command.amount,
+                merchantId = command.merchantId,
+                providerTxId = providerTxId,
+                failureCode = failureCode,
+            )
+        )
+        eventPublisher.publishEvent(
+            WebhookEvent(
+                merchantId = command.merchantId,
+                aggregateId = command.paymentKey,
+                eventType = eventType,
+                payload = payload,
+            )
+        )
+    }
 }
+
+private data class WebhookOutboxPayload(
+    val paymentKey: String,
+    val orderId: String,
+    val amount: Long,
+    val merchantId: Long,
+    val providerTxId: String?,
+    val failureCode: String?,
+)
