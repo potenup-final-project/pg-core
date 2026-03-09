@@ -35,6 +35,7 @@ jobs:
 
             docker run -d \
               --name potenup \
+              --env-file /home/ec2-user/app/pg-core.env \
               -p 8080:8080 \
               --restart always \
               potenup/pg-core:${{ needs.build.outputs.image_tag }}
