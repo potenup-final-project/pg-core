@@ -1,5 +1,6 @@
 package com.pgcore.core.domain.payment
 
+import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentTransactionErrorCode
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
@@ -55,7 +56,7 @@ class PaymentTransaction protected constructor(
     val requestedAmount: Money,
 
     @Column(name = "pg_tx_id", length = 80)
-    var pgTxId: String? = null,
+    var providerTxId: String? = null,
 
     @Column(name = "idempotency_key", length = 80, nullable = false, updatable = false)
     val idempotencyKey: String,
@@ -72,6 +73,10 @@ class PaymentTransaction protected constructor(
     var failureMessage: String? = null
         protected set
 
+    @Column(name = "need_net_cancel", nullable = false)
+    var needNetCancel: Boolean = false
+        protected set
+
     @Column(name = "attempt_count", nullable = false)
     var attemptCount: Int = 0
         protected set
@@ -85,7 +90,7 @@ class PaymentTransaction protected constructor(
         protected set
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime? = null
+    var updatedAt: LocalDateTime = LocalDateTime.now()
         protected set
 
     companion object {
@@ -141,11 +146,11 @@ class PaymentTransaction protected constructor(
     }
 
     fun markSuccess(
-        pgTxId: String?,
+        providerTxId: String?,
         confirmedAt: LocalDateTime = LocalDateTime.now(),
     ) {
         this.status = PaymentTxStatus.SUCCESS
-        this.pgTxId = pgTxId
+        this.providerTxId = providerTxId
         this.confirmedAt = confirmedAt
         this.failureCode = null
         this.failureMessage = null
@@ -169,6 +174,19 @@ class PaymentTransaction protected constructor(
         this.nextAttemptAt = nextAttemptAt
     }
 
+    /**
+     * [치명 불일치 발생 시 호출]
+     * PG사는 승인(Success)되었으나 시스템 원장이 ABORTED 되어 정상적인 반영이 불가능한 경우.
+     * 대사(Reconciliation) 배치가 이 건을 발견하고 PG사에 망취소를 요청할 수 있도록 플래그를 켭니다.
+     */
+    fun markNeedNetCancel(providerTxId: String?) {
+        this.status = PaymentTxStatus.UNKNOWN // 상태는 대사 대상인 UNKNOWN으로 마킹
+        this.providerTxId = providerTxId                  // 망취소 시 반드시 필요하므로 멱살 잡고 저장!
+        this.needNetCancel = true             // 배치 프로그램이 긁어갈 플래그 ON
+        this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
+        this.failureMessage = "원장 확정 실패(ABORTED)로 인한 망취소 대기"
+    }
+
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
         if(status.isRetryable())
             throw BusinessException(PaymentTransactionErrorCode.INVALID_STATUS_TRANSITION)
@@ -190,17 +208,36 @@ enum class PaymentTxStatus {
     UNKNOWN,;
 
     fun isRetryable(): Boolean = this == PENDING || this == UNKNOWN
+
+    fun toPaymentStatus(): PaymentStatus = when (this) {
+        SUCCESS -> PaymentStatus.DONE
+        FAIL -> PaymentStatus.ABORTED
+        UNKNOWN, PENDING -> PaymentStatus.UNKNOWN
+    }
 }
 
-enum class PaymentTxFailureCode {
-    CARD_BLOCKED,
-    CARD_EXPIRED,
-    INSUFFICIENT_FUNDS,
-    LIMIT_EXCEEDED,
-    INVALID_CARD,
-    INVALID_PIN_OR_CVC,
-    FRAUD_SUSPECTED,
-    MERCHANT_NOT_ALLOWED,
-    DUPLICATE_REQUEST,
-    INTERNAL_ERROR,
+enum class PaymentTxFailureCode(val defaultMessage: String) {
+    CARD_BLOCKED("카드 사용이 정지(분실/도난 신고 또는 이용 제한)되어 승인에 실패했습니다."),
+    CARD_EXPIRED("카드 유효기간 만료로 승인에 실패했습니다."),
+    INSUFFICIENT_FUNDS("잔액 부족으로 승인에 실패했습니다."),
+    LIMIT_EXCEEDED("한도 초과로 승인에 실패했습니다."),
+    INVALID_CARD("유효하지 않은 카드 정보로 승인에 실패했습니다."),
+    INVALID_PIN_OR_CVC("비밀번호(PIN) 또는 CVC 오류로 승인에 실패했습니다."),
+    FRAUD_SUSPECTED("부정 사용 의심으로 카드사에서 승인을 거절했습니다."),
+    MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
+    DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
+    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다.");
+
+    fun buildReason(rawCode: String?): String {
+        val suffix = rawCode?.let { " (code=$it)" } ?: ""
+        return this.defaultMessage + suffix
+    }
+
+    companion object {
+        fun fromRawCode(rawFailureCode: String?): PaymentTxFailureCode =
+            rawFailureCode
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { valueOf(it) }.getOrNull() }
+                ?: INTERNAL_ERROR
+    }
 }

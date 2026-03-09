@@ -6,7 +6,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 
 @Embeddable
-class Money(
+data class Money(
     @Column(nullable = false)
     val amount: Long,
 ): Comparable<Money> {
