@@ -1,7 +1,7 @@
 package com.pgcore.core.application.usecase.command
 
 import com.pgcore.core.application.port.out.dto.CardApprovalResult
-import com.pgcore.core.application.port.out.dto.CardApprovalStatus
+import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
@@ -45,7 +45,7 @@ class ConfirmStep2Writer(
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_TX_NOT_FOUND)
 
         with(approvalResult) {
-            return if (status == CardApprovalStatus.SUCCESS) {
+            return if (status == CardProviderResponseStatus.SUCCESS) {
                 // CAS 방식으로 결제 상태 선점 (IN_PROGRESS -> DONE)
                 val affectedRows = paymentMutationRepository.finalizeApproveSuccess(command.paymentKey)
 
@@ -166,7 +166,7 @@ class ConfirmStep2Writer(
     fun handleExceptionAndMarkUnknown(
         command: ConfirmPaymentCommand,
         txId: Long,
-        approvalStatus: CardApprovalStatus?,
+        approvalStatus: CardProviderResponseStatus?,
         providerTxId: String?
     ) {
         // 1) payments CAS: IN_PROGRESS → UNKNOWN
@@ -182,7 +182,7 @@ class ConfirmStep2Writer(
             PaymentTxStatus.UNKNOWN -> return
             PaymentTxStatus.PENDING -> {
                 // PG사에서는 승인 성공했으나 DB 반영 중 에러가 났다면 망취소 대상으로 플래그 ON
-                if (approvalStatus == CardApprovalStatus.SUCCESS) {
+                if (approvalStatus == CardProviderResponseStatus.SUCCESS) {
                     transaction.markNeedNetCancel(providerTxId)
                 } else {
                     // 통신 타임아웃 등으로 결과를 아예 모르거나(null), 실패했다면 일반 UNKNOWN 마킹
