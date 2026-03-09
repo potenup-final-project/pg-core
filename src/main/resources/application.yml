@@ -28,6 +28,10 @@ management:
     tags:
       application: pgcore
 
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
+
 ---
 spring:
   config:
@@ -44,6 +48,9 @@ spring:
     show-sql: true
 
 webhook:
+  auth:
+    enabled: ${WEBHOOK_AUTH_ENABLED}
+    merchant-tokens: ${WEBHOOK_AUTH_MERCHANT_TOKENS}
   dispatcher:
     batch-size: ${DISPATCHER_BATCH_SIZE}
     interval-ms: ${DISPATCHER_INTERVAL_MS}
@@ -75,7 +82,7 @@ outbox:
     lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS}
     max-retry: ${MAX_RETRY_WEBHOOK}
     sqs:
-      queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL:}
+      queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL}
 
 aws:
   region: ${AWS_REGION}
