@@ -7,10 +7,8 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
-import java.util.UUID
+import java.util.*
 
 @Entity
 @Table(
@@ -86,9 +84,8 @@ class OutboxEvent protected constructor(
         updateOutbox()
     }
 
-    fun markPublished(lastError: String? = null) {
+    fun markPublished() {
         status = OutboxStatus.PUBLISHED
-        this.lastError = lastError
         updateOutbox()
     }
 
@@ -111,6 +108,10 @@ class OutboxEvent protected constructor(
         nextAttemptAt = LocalDateTime.now()
         lastError = "LEASE_EXPIRED"
         updateOutbox()
+    }
+
+    fun canNextOutcome(maxRetryCount: Int): Boolean {
+        return retryCount + 1 >= maxRetryCount
     }
 
     private fun updateOutbox() {
