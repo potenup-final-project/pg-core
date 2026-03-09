@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.pgcore.core.infra.outbox.application.usecase.port.OutboxMessagePublisher
 import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
+import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
@@ -30,7 +31,7 @@ class SqsOutboxMessagePublisher(
 
     init {
         require(queueUrl.isNotBlank()) {
-            "outbox.relay.sqs.queue-url must be configured when outbox.relay.publisher=sqs"
+            WebhookOutboxErrorCode.RELAY_SQS_QUEUE_URL_MISSING.message
         }
     }
 

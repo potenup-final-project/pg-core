@@ -1,5 +1,6 @@
 package com.pgcore.global.config
 
+import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
 import jakarta.annotation.PostConstruct
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
@@ -29,7 +30,7 @@ class RequiredPropertiesValidator(
 
         val missing = required.filter { environment.getProperty(it).isNullOrBlank() }
         if (missing.isNotEmpty()) {
-            throw IllegalStateException("Missing required environment variables: ${missing.joinToString(", ")}")
+            throw IllegalStateException("${WebhookOutboxErrorCode.REQUIRED_ENV_MISSING.message} : ${missing.joinToString(", ")}")
         }
 
         val relayEnabled = environment.getProperty("OUTBOX_RELAY_ENABLED")?.toBooleanStrictOrNull() == true
