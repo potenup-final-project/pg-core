@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component
 @ConditionalOnProperty(prefix = "outbox.relay", name = ["enabled"], havingValue = "true")
 class OutboxRelayWorker(
     private val outboxRelayService: OutboxRelayService,
-    @Value("\${outbox.relay.batch-size:100}") private val batchSize: Int,
+    @Value("\${outbox.relay.batch-size}") private val batchSize: Int,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(fixedDelayString = "\${outbox.relay.interval-ms:1000}")
+    @Scheduled(fixedDelayString = "\${outbox.relay.interval-ms}")
     fun relay() {
         try {
             outboxRelayService.relayBatch(batchSize)

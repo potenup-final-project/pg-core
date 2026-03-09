@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component
 class OutboxLeaseSweeper(
     private val outboxEventRepository: OutboxEventRepository,
     private val outboxMetrics: OutboxMetrics,
-    @Value("\${outbox.relay.lease-minutes:3}") private val leaseMinutes: Int,
+    @Value("\${outbox.relay.lease-minutes}") private val leaseMinutes: Int,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(fixedDelayString = "\${outbox.relay.lease-sweep-interval-ms:10000}")
+    @Scheduled(fixedDelayString = "\${outbox.relay.lease-sweep-interval-ms}")
     fun sweep() {
         try {
             val recovered = outboxEventRepository.recoverExpiredLeases(leaseMinutes)

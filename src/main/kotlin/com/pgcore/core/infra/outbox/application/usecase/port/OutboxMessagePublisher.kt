@@ -9,4 +9,6 @@ interface OutboxMessagePublisher {
 data class PublishResult(
     val success: Boolean,
     val errorCode: String? = null,
-)
+){
+    fun isSuccess(): Boolean = success
+}
