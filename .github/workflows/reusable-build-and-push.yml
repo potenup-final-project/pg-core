@@ -43,12 +43,16 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build jar
         run: ./gradlew clean bootJar -x test --no-daemon
+
+      - name: Verify jar exists
+        run: ls -al build/libs
 
       - name: Set image tag
         id: vars

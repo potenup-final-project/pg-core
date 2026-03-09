@@ -1,4 +1,4 @@
-name: deploy.yml
+name: deploy
 
 on:
   push:
@@ -18,21 +18,31 @@ jobs:
   deploy:
     needs: build
     runs-on: self-hosted
+    environment: production
 
     steps:
+      - name: Print image tag
+        run: echo "Deploying image tag ${{ needs.build.outputs.image_tag }}"
+
       - name: Docker login
         run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
 
-      - name: Pull image
+      - name: Pull new image
         run: docker pull potenup/pg-core:${{ needs.build.outputs.image_tag }}
 
-      - name: Restart container
+      - name: Stop and remove old container
         run: |
           docker stop potenup || true
           docker rm potenup || true
+
+      - name: Run new container
+        run: |
           docker run -d \
             --name potenup \
             --env-file /home/ec2-user/app/pg-core.env \
             -p 8080:8080 \
             --restart always \
             potenup/pg-core:${{ needs.build.outputs.image_tag }}
+
+      - name: Cleanup dangling images
+        run: docker image prune -f
