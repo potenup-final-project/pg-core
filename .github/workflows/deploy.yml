@@ -17,27 +17,22 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Deploy to PROD EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-            docker pull potenup/pg-core:${{ needs.build.outputs.image_tag }}
+      - name: Docker login
+        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
 
-            docker stop potenup || true
-            docker rm potenup || true
+      - name: Pull image
+        run: docker pull potenup/pg-core:${{ needs.build.outputs.image_tag }}
 
-            docker run -d \
-              --name potenup \
-              --env-file /home/ec2-user/app/pg-core.env \
-              -p 8080:8080 \
-              --restart always \
-              potenup/pg-core:${{ needs.build.outputs.image_tag }}
-
-            docker image prune -f
+      - name: Restart container
+        run: |
+          docker stop potenup || true
+          docker rm potenup || true
+          docker run -d \
+            --name potenup \
+            --env-file /home/ec2-user/app/pg-core.env \
+            -p 8080:8080 \
+            --restart always \
+            potenup/pg-core:${{ needs.build.outputs.image_tag }}
