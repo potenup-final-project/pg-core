@@ -32,9 +32,9 @@ class OutboxRelayServiceTest {
 
     @Test
     fun `릴레이는 publish 결과를 모아 배치로 상태를 반영한다`() {
-        val success = OutboxEvent.create(1L, "a1", OutboxEventType.PAYMENT_DONE, "{}")
-        val retry = OutboxEvent.create(1L, "a2", OutboxEventType.PAYMENT_DONE, "{}")
-        val dead = OutboxEvent.create(1L, "a3", OutboxEventType.PAYMENT_DONE, "{}")
+        val success = OutboxEvent.create(1L, 101L, OutboxEventType.PAYMENT_DONE, "{}")
+        val retry = OutboxEvent.create(1L, 102L, OutboxEventType.PAYMENT_DONE, "{}")
+        val dead = OutboxEvent.create(1L, 103L, OutboxEventType.PAYMENT_DONE, "{}")
         dead.markFailed("PREV_FAIL", LocalDateTime.now())
 
         every { outboxEventRepository.claimDueBatch(10) } returns listOf(success, retry, dead)

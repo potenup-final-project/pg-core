@@ -29,14 +29,14 @@ class OutboxEventListenerTest {
         listener.handle(
             WebhookEvent(
                 merchantId = 7L,
-                aggregateId = "pay_123",
+                aggregateId = 123L,
                 eventType = OutboxEventType.PAYMENT_DONE,
                 payload = "{\"amount\":1000}",
             )
         )
 
         assertEquals(7L, savedEvent.captured.merchantId)
-        assertEquals("pay_123", savedEvent.captured.aggregateId)
+        assertEquals(123L, savedEvent.captured.aggregateId)
         assertEquals(OutboxEventType.PAYMENT_DONE, savedEvent.captured.eventType)
         assertEquals("{\"amount\":1000}", savedEvent.captured.payload)
 
