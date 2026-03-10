@@ -44,5 +44,21 @@ jobs:
             --restart always \
             potenup/pg-core:${{ needs.build.outputs.image_tag }}
 
-      - name: Cleanup dangling images
-        run: docker image prune -f
+      - name: Verify container running
+        run: |
+          sleep 5
+          docker ps | grep potenup
+
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -f http://localhost:8080/actuator/health; then
+              echo "Service is healthy"
+              exit 0
+            fi
+            echo "Waiting for service..."
+            sleep 5
+          done
+          echo "Service failed to start"
+          docker logs potenup
+          exit 1
