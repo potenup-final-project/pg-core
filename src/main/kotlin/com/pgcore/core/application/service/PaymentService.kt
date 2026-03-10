@@ -165,6 +165,7 @@ class PaymentService(
         // 3) Step 1: 상태 변경 없이 PENDING 이력 생성 (TX-1)
         val txId = cancelStep1Writer.createCancelTx(command, payment.paymentId)
         var cancelStatus: CardProviderResponseStatus? = null
+        var providerTxId: String? = null
 
         try {
             // 4) 외부 API 통신 (TX 밖)
@@ -176,6 +177,7 @@ class PaymentService(
             )
 
             cancelStatus = providerResponse.status
+            providerTxId = providerResponse.providerTxId
 
             // 5) Step 2: 결과 반영 (TX-2)
             val transaction = cancelStep2Writer.finalizeCancel(
@@ -184,8 +186,8 @@ class PaymentService(
                 cancelStatus = providerResponse
             )
 
-            if (transaction.needNetCancel) {
-                // PG사 승인 성공했으나 DB 반영 실패 -> 망취소(대사) 대상 마킹
+            if (transaction.needReconciliation) {
+                // 카드사 취소는 성공했으나 로컬 원장 반영 실패 → 대사 배치 보정 대상
                 throw BusinessException(PaymentErrorCode.PAYMENT_STATE_MISMATCH)
             }
 
@@ -200,11 +202,11 @@ class PaymentService(
                 balanceAmount = updatedPayment.balanceAmount.amount,
             )
         } catch (e: Exception) {
-            runCatching {
-                cancelStep2Writer.handleExceptionAndMarkUnknown(
+            runCatching<Unit> {
+                cancelStep2Writer.markReconciliationOrUnknownOnException(
                     txId = txId,
                     cancelStatus = cancelStatus,
-                    providerTxId = null
+                    providerTxId = providerTxId
                 )
             }
             throw e
