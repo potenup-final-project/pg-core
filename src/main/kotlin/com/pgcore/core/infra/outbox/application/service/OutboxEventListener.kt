@@ -28,7 +28,7 @@ class OutboxEventListener(
 
 data class WebhookEvent(
     val merchantId: Long,
-    val aggregateId: String,
+    val aggregateId: Long,
     val eventType: OutboxEventType,
     val payload: String,
 )
