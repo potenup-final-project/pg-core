@@ -33,4 +33,16 @@ interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTrans
         """
     )
     fun findPendingNetCancelsForUpdate(now: LocalDateTime, pageable: Pageable): List<PaymentTransaction>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query(
+        """
+        SELECT t FROM PaymentTransaction t
+        WHERE t.needReconciliation = true
+          AND t.status = com.pgcore.core.domain.payment.PaymentTxStatus.UNKNOWN
+        ORDER BY t.id ASC
+        """
+    )
+    fun findPendingReconciliationsForUpdate(pageable: Pageable): List<PaymentTransaction>
 }
