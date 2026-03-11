@@ -103,14 +103,12 @@ class NetCancelService(
         command: NetCancelCommand,
         transaction: PaymentTransaction,
     ): NetCancelResult {
+        // 1. TX 확정을 먼저 flush — 이후 예외가 발생해도 needNetCancel=false 는 유지됨
         transaction.markNetCancelDone()
         paymentTransactionRepository.saveAndFlush(transaction)
 
-        val payment = paymentRepository.findByPaymentKey(command.paymentKey)
-            ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
-
-        payment.markAbortedByNetCancel()
-        paymentRepository.saveAndFlush(payment)
+        // 2. Payment 원장 갱신 — 실패해도 망취소 자체는 성공으로 확정
+        markPaymentAbortedOrWarn(command)
 
         log.info("[NetCancel] txId={} 망취소 성공. providerTxId={}", command.txId, command.providerTxId)
         return NetCancelResult(
@@ -118,6 +116,24 @@ class NetCancelService(
             paymentKey = command.paymentKey,
             outcome = NetCancelResult.Outcome.SUCCESS,
         )
+    }
+
+    /**
+     * Payment 원장을 ABORTED 로 갱신합니다.
+     * Payment를 찾지 못한 경우 망취소 성공 여부에 영향을 주지 않으므로
+     * 예외를 던지지 않고 경고 로그만 남깁니다.
+     */
+    private fun markPaymentAbortedOrWarn(command: NetCancelCommand) {
+        val payment = paymentRepository.findByPaymentKey(command.paymentKey)
+        if (payment == null) {
+            log.error(
+                "[NetCancel] txId={} Payment 원장을 찾을 수 없습니다. 수동 확인 필요. paymentKey={}",
+                command.txId, command.paymentKey,
+            )
+            return
+        }
+        payment.markAbortedByNetCancel()
+        paymentRepository.saveAndFlush(payment)
     }
 
     /**
