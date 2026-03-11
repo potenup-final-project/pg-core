@@ -11,11 +11,11 @@ import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
-import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import com.pgcore.core.infra.outbox.application.service.SettlementEvent
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -29,6 +29,8 @@ class CancelStep2Writer(
     private val eventPublisher: ApplicationEventPublisher,
     private val objectMapper: ObjectMapper,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun finalizeCancel(
         command: CancelPaymentCommand,
@@ -44,10 +46,10 @@ class CancelStep2Writer(
                 val applyResult = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
 
                 when (applyResult) {
-                    CancelApplyResult.NOOP -> handleApplyCancelFailure(command, transaction)
+                    CancelApplyResult.NOOP -> handleApplyCancelFailure(command, transaction, providerTxId)
                     CancelApplyResult.FULL_CANCELED,
                     CancelApplyResult.PARTIAL_CANCELED -> {
-                        transaction.markSuccess(null)
+                        transaction.markSuccess(providerTxId)
                         publishWebhookEvent(
                             command = command,
                             orderId = orderId,
@@ -59,6 +61,7 @@ class CancelStep2Writer(
                             command = command,
                             orderId = orderId,
                             transaction = transaction,
+                            providerTxId = providerTxId,
                         )
                     }
                 }
@@ -78,47 +81,55 @@ class CancelStep2Writer(
     private fun handleApplyCancelFailure(
         command: CancelPaymentCommand,
         transaction: PaymentTransaction,
+        providerTxId: String?,
     ) {
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
             ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
 
-        val moneyToCancel = Money(command.amount)
-
-        val isNotCancelable = !payment.canCancelWith(moneyToCancel)
         val isAlreadyProcessed = paymentTransactionRepository.existsSuccessCancelTx(
-            payment.paymentId, command.amount, command.idempotencyKey
+            payment.paymentId,
+            command.amount,
+            command.idempotencyKey,
         )
 
         when {
-            // 취소 불가능 상태 (상태 불일치/잔액 부족 등): 망취소 마킹 후 도메인 예외 발생
-            isNotCancelable -> {
-                transaction.markNeedNetCancel(null)
-                paymentTransactionRepository.saveAndFlush(transaction)
-                throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
-            }
-
-            // (b) 멱등성: 이미 성공한 동일 취소 건이 존재하면 성공으로 간주
             isAlreadyProcessed -> {
-                transaction.markSuccess(null)
+                transaction.markSuccess(providerTxId)
             }
 
-            // (c) 기타 원인 불명 (DB 장애 등): 안전하게 망취소 대상으로 분류
             else -> {
-                transaction.markNeedNetCancel(null)
+                log.error(
+                    "[CancelReconciliation] 불일치 발생! 카드사 취소 성공 / 로컬 반영 실패. txId={}, paymentKey={}, amount={}, providerTxId={}",
+                    transaction.id,
+                    command.paymentKey,
+                    command.amount,
+                    providerTxId,
+                )
+                transaction.markNeedReconciliation(providerTxId)
             }
         }
     }
 
+    /**
+     * 카드사 API 호출 이후 로컬 DB 처리 중 예외가 발생했을 때 호출됩니다.
+     * - 카드사 취소 성공(SUCCESS): needReconciliation 마킹
+     * - 그 외: UNKNOWN 마킹
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun handleExceptionAndMarkUnknown(
+    fun markReconciliationOrUnknownOnException(
         txId: Long,
         cancelStatus: CardProviderResponseStatus?,
-        providerTxId: String?
+        providerTxId: String?,
     ) {
         val transaction = paymentTransactionRepository.findById(txId) ?: return
 
         if (cancelStatus == CardProviderResponseStatus.SUCCESS) {
-            transaction.markNeedNetCancel(providerTxId)
+            log.error(
+                "[CancelReconciliation] 카드사 취소 성공 후 로컬 예외 발생 — needReconciliation 마킹. txId={}, providerTxId={}",
+                txId,
+                providerTxId,
+            )
+            transaction.markNeedReconciliation(providerTxId)
         } else {
             transaction.markUnknown()
         }
@@ -146,7 +157,7 @@ class CancelStep2Writer(
                 amount = command.amount,
                 reason = command.reason,
                 remainingAmount = remainingAmount,
-            )
+            ),
         )
 
         eventPublisher.publishEvent(
@@ -155,7 +166,7 @@ class CancelStep2Writer(
                 aggregateId = transaction.paymentId,
                 eventType = eventType,
                 payload = payload,
-            )
+            ),
         )
     }
 
@@ -163,23 +174,24 @@ class CancelStep2Writer(
         command: CancelPaymentCommand,
         orderId: String,
         transaction: PaymentTransaction,
+        providerTxId: String?,
     ) {
         val payload = objectMapper.writeValueAsString(
             SettlementCancelOutboxPayload(
                 paymentKey = command.paymentKey,
                 transactionId = transaction.id,
                 orderId = orderId,
-                providerTxId = transaction.providerTxId ?: "",
+                providerTxId = providerTxId ?: "",
                 transactionType = "CANCEL",
-                amount = command.amount
-            )
+                amount = command.amount,
+            ),
         )
         eventPublisher.publishEvent(
             SettlementEvent(
                 merchantId = command.merchantId,
                 aggregateId = transaction.paymentId,
                 payload = payload,
-            )
+            ),
         )
     }
 }

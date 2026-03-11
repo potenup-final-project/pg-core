@@ -49,4 +49,9 @@ class PaymentTransactionRepositoryImpl(
             now = now,
             pageable = org.springframework.data.domain.PageRequest.of(0, limit),
         )
+
+    override fun findPendingReconciliations(limit: Int): List<PaymentTransaction> =
+        jpaRepository.findPendingReconciliationsForUpdate(
+            pageable = org.springframework.data.domain.PageRequest.of(0, limit),
+        )
 }

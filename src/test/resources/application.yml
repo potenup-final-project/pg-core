@@ -24,6 +24,18 @@ webhook:
   endpoint:
     require-https: false
 
+mock-card-server:
+  url: http://localhost:8081
+
+payment:
+  reconciliation:
+    unknown:
+      enabled: false
+      interval-ms: 1000
+      batch-size: 10
+      lease-seconds: 30
+      max-retry-attempts: 6
+
 DB_USER: test
 DB_PASSWORD: test
 WEBHOOK_SECRET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

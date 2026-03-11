@@ -19,11 +19,13 @@ interface PaymentTransactionRepository {
     fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean
 
     /**
-     * needNetCancel == true 이고 nextAttemptAt 이 now 이전(또는 null)인 트랜잭션을 조회합니다.
-     * 배치가 주기적으로 호출하여 망취소 대상 건을 가져옵니다.
-     *
      * @param now       현재 시각 기준 (nextAttemptAt <= now 인 건만 포함)
      * @param limit     한 번에 처리할 최대 건수 (기본값 100)
      */
     fun findPendingNetCancels(now: LocalDateTime, limit: Int = 100): List<PaymentTransaction>
+
+    /**
+     * @param limit     한 번에 처리할 최대 건수 (기본값 100)
+     */
+    fun findPendingReconciliations(limit: Int = 100): List<PaymentTransaction>
 }
