@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
+import com.pgcore.core.application.port.out.dto.RecordSettlementCommand
+import java.time.LocalDateTime
+
 @Component
 class ConfirmStep2Writer(
     private val paymentRepository: PaymentRepository,
@@ -58,6 +61,11 @@ class ConfirmStep2Writer(
                         aggregateId = transaction.paymentId,
                         eventType = OutboxEventType.PAYMENT_DONE,
                         providerTxId = providerTxId,
+                    )
+                    publishSettlementEvent(
+                        command = command,
+                        transaction = transaction,
+                        providerTxId = providerTxId!!,
                     )
                     paymentTransactionRepository.saveAndFlush(transaction)
                 }
@@ -108,6 +116,11 @@ class ConfirmStep2Writer(
                         aggregateId = transaction.paymentId,
                         eventType = OutboxEventType.PAYMENT_DONE,
                         providerTxId = providerTxId,
+                    )
+                    publishSettlementEvent(
+                        command = command,
+                        transaction = transaction,
+                        providerTxId = providerTxId!!,
                     )
                     paymentTransactionRepository.saveAndFlush(transaction)
                 }
@@ -219,6 +232,34 @@ class ConfirmStep2Writer(
                 merchantId = command.merchantId,
                 aggregateId = aggregateId,
                 eventType = eventType,
+                payload = payload,
+            )
+        )
+    }
+
+    private fun publishSettlementEvent(
+        command: ConfirmPaymentCommand,
+        transaction: PaymentTransaction,
+        providerTxId: String,
+    ) {
+        val payload = objectMapper.writeValueAsString(
+            RecordSettlementCommand(
+                eventId = transaction.paymentId.toString() + "_" + transaction.id.toString(),
+                paymentKey = command.paymentKey,
+                transactionId = transaction.id,
+                orderId = command.orderId,
+                providerTxId = providerTxId,
+                merchantId = command.merchantId,
+                transactionType = "PAYMENT",
+                amount = command.amount,
+                eventOccurredAt = LocalDateTime.now()
+            )
+        )
+        eventPublisher.publishEvent(
+            WebhookEvent(
+                merchantId = command.merchantId,
+                aggregateId = transaction.paymentId,
+                eventType = OutboxEventType.SETTLEMENT_RECORD,
                 payload = payload,
             )
         )

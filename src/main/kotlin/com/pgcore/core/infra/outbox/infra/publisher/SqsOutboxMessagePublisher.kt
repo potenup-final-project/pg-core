@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.pgcore.core.infra.outbox.application.usecase.port.OutboxMessagePublisher
 import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
+import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
 import org.slf4j.MDC
@@ -37,17 +38,21 @@ class SqsOutboxMessagePublisher(
 
     override fun publish(event: OutboxEvent): PublishResult {
         return try {
-            val body = objectMapper.writeValueAsString(
-                WebhookDispatchMessage(
-                    messageId = event.eventId.toString(),
-                    traceId = MDC.get("traceId"),
-                    occurredAt = event.createdAt.toString(),
-                    eventType = event.eventType.name,
-                    eventId = event.eventId,
-                    merchantId = event.merchantId,
-                    payload = event.payload,
+            val body = if (event.eventType == OutboxEventType.SETTLEMENT_RECORD) {
+                event.payload
+            } else {
+                objectMapper.writeValueAsString(
+                    WebhookDispatchMessage(
+                        messageId = event.eventId.toString(),
+                        traceId = MDC.get("traceId"),
+                        occurredAt = event.createdAt.toString(),
+                        eventType = event.eventType.name,
+                        eventId = event.eventId,
+                        merchantId = event.merchantId,
+                        payload = event.payload,
+                    )
                 )
-            )
+            }
             sqsClient.sendMessage { req ->
                 req.queueUrl(queueUrl)
                     .messageBody(body)

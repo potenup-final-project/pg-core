@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
+import com.pgcore.core.application.port.out.dto.RecordSettlementCommand
+import java.time.LocalDateTime
+
 @Component
 class CancelStep2Writer(
     private val paymentMutationRepository: PaymentMutationRepository,
@@ -53,6 +56,11 @@ class CancelStep2Writer(
                             transaction = transaction,
                             applyResult = applyResult,
                             remainingAmount = remainingAmount,
+                        )
+                        publishSettlementEvent(
+                            command = command,
+                            orderId = orderId,
+                            transaction = transaction,
                         )
                     }
                 }
@@ -148,6 +156,34 @@ class CancelStep2Writer(
                 merchantId = command.merchantId,
                 aggregateId = transaction.paymentId,
                 eventType = eventType,
+                payload = payload,
+            )
+        )
+    }
+
+    private fun publishSettlementEvent(
+        command: CancelPaymentCommand,
+        orderId: String,
+        transaction: PaymentTransaction,
+    ) {
+        val payload = objectMapper.writeValueAsString(
+            RecordSettlementCommand(
+                eventId = transaction.paymentId.toString() + "_" + transaction.id.toString(),
+                paymentKey = command.paymentKey,
+                transactionId = transaction.id,
+                orderId = orderId,
+                providerTxId = transaction.providerTxId ?: "",
+                merchantId = command.merchantId,
+                transactionType = "CANCEL",
+                amount = command.amount,
+                eventOccurredAt = LocalDateTime.now()
+            )
+        )
+        eventPublisher.publishEvent(
+            WebhookEvent(
+                merchantId = command.merchantId,
+                aggregateId = transaction.paymentId,
+                eventType = OutboxEventType.SETTLEMENT_RECORD,
                 payload = payload,
             )
         )
