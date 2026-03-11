@@ -1,0 +1,81 @@
+name: reusable-build-and-push
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      dockerfile:
+        required: false
+        type: string
+        default: ./Dockerfile
+      platforms:
+        required: false
+        type: string
+        default: linux/amd64
+      push:
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      image_tag:
+        description: "Pushed image tag"
+        value: ${{ jobs.build.outputs.image_tag }}
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build jar
+        run: ./gradlew clean bootJar -x test --no-daemon
+
+      - name: Verify jar exists
+        run: ls -al build/libs
+
+      - name: Set image tag
+        id: vars
+        run: echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: |
+            ${{ inputs.image_name }}:${{ steps.vars.outputs.image_tag }}
+            ${{ inputs.image_name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
