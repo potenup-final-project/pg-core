@@ -1,10 +1,9 @@
 spring:
-  profiles:
-    active: local
   datasource:
-    url: jdbc:mysql://localhost:3306/pgcore?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: validate
@@ -32,21 +31,6 @@ logging:
   pattern:
     level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
 
----
-spring:
-  config:
-    activate:
-      on-profile: local
-  datasource:
-    url: jdbc:mysql://localhost:3306/pgcore
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create
-    show-sql: true
-
 webhook:
   auth:
     enabled: ${WEBHOOK_AUTH_ENABLED}
@@ -69,9 +53,6 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
 
-mock-card-server:
-  url: http://localhost:8081
-
 outbox:
   relay:
     enabled: ${OUTBOX_RELAY_ENABLED}
@@ -83,6 +64,9 @@ outbox:
     max-retry: ${MAX_RETRY_WEBHOOK}
     sqs:
       queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL}
+
+mock-card-server:
+  url: ${MOCK_CARD_SERVER_URL}
 
 aws:
   region: ${AWS_REGION}

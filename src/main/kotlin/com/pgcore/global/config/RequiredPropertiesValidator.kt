@@ -25,6 +25,7 @@ class RequiredPropertiesValidator(
             "OUTBOX_RELAY_LEASE_MINUTES",
             "OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS",
             "MAX_RETRY_WEBHOOK",
+            "MOCK_CARD_SERVER_URL",
             "AWS_REGION",
         )
 

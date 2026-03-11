@@ -26,8 +26,8 @@ class OutboxEvent protected constructor(
     @Column(nullable = false, updatable = false)
     val merchantId: Long,
 
-    @Column(length = 128, nullable = false, updatable = false)
-    val aggregateId: String,
+    @Column(nullable = false, updatable = false)
+    val aggregateId: Long,
 
     @Enumerated(EnumType.STRING)
     @Column(length = 64, nullable = false, updatable = false)
@@ -68,7 +68,7 @@ class OutboxEvent protected constructor(
     companion object {
         fun create(
             merchantId: Long,
-            aggregateId: String,
+            aggregateId: Long,
             eventType: OutboxEventType,
             payload: String,
         ): OutboxEvent = OutboxEvent(

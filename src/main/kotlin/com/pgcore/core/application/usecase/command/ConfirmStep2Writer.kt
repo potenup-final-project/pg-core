@@ -55,6 +55,7 @@ class ConfirmStep2Writer(
                     transaction.markSuccess(providerTxId)
                     publishWebhookEvent(
                         command = command,
+                        aggregateId = transaction.paymentId,
                         eventType = OutboxEventType.PAYMENT_DONE,
                         providerTxId = providerTxId,
                     )
@@ -73,6 +74,7 @@ class ConfirmStep2Writer(
                     transaction.markFail(mappedCode, reason)
                     publishWebhookEvent(
                         command = command,
+                        aggregateId = transaction.paymentId,
                         eventType = OutboxEventType.PAYMENT_FAILED,
                         providerTxId = providerTxId,
                         failureCode = failureCode,
@@ -103,6 +105,7 @@ class ConfirmStep2Writer(
                     transaction.markSuccess(providerTxId)
                     publishWebhookEvent(
                         command = command,
+                        aggregateId = transaction.paymentId,
                         eventType = OutboxEventType.PAYMENT_DONE,
                         providerTxId = providerTxId,
                     )
@@ -127,6 +130,7 @@ class ConfirmStep2Writer(
                         transaction.markFail(mappedCode, reason)
                         publishWebhookEvent(
                             command = command,
+                            aggregateId = transaction.paymentId,
                             eventType = OutboxEventType.PAYMENT_FAILED,
                             providerTxId = providerTxId,
                             failureCode = failureCode,
@@ -195,6 +199,7 @@ class ConfirmStep2Writer(
 
     private fun publishWebhookEvent(
         command: ConfirmPaymentCommand,
+        aggregateId: Long,
         eventType: OutboxEventType,
         providerTxId: String? = null,
         failureCode: String? = null,
@@ -212,7 +217,7 @@ class ConfirmStep2Writer(
         eventPublisher.publishEvent(
             WebhookEvent(
                 merchantId = command.merchantId,
-                aggregateId = command.paymentKey,
+                aggregateId = aggregateId,
                 eventType = eventType,
                 payload = payload,
             )
