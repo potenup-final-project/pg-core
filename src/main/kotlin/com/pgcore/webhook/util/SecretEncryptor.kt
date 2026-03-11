@@ -1,5 +1,6 @@
 package com.pgcore.webhook.util
 
+import com.pgcore.webhook.domain.exception.WebhookErrorCode
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.security.SecureRandom
@@ -31,7 +32,7 @@ class SecretEncryptor(
 
     fun decrypt(encrypted: String): String {
         val packed = Base64.getDecoder().decode(encrypted)
-        require(packed.size > 12) { "invalid encrypted secret" }
+        require(packed.size > 12) { WebhookErrorCode.INVALID_ENCRYPTED_SECRET.message }
 
         val iv = packed.copyOfRange(0, 12)
         val cipherText = packed.copyOfRange(12, packed.size)

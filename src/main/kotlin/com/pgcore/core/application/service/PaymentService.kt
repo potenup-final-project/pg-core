@@ -181,6 +181,7 @@ class PaymentService(
             val transaction = cancelStep2Writer.finalizeCancel(
                 command = command,
                 txId = txId,
+                orderId = payment.orderId,
                 cancelStatus = providerResponse
             )
 

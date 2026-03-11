@@ -1,6 +1,4 @@
 spring:
-  profiles:
-    active: local
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
@@ -33,8 +31,14 @@ management:
     hibernate:
       ddl-auto: update
     show-sql: true
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
 
 webhook:
+  auth:
+    enabled: ${WEBHOOK_AUTH_ENABLED}
+    merchant-tokens: ${WEBHOOK_AUTH_MERCHANT_TOKENS}
   dispatcher:
     batch-size: ${DISPATCHER_BATCH_SIZE}
     interval-ms: ${DISPATCHER_INTERVAL_MS}
@@ -53,6 +57,18 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
 
+outbox:
+  relay:
+    enabled: ${OUTBOX_RELAY_ENABLED}
+    publisher: ${OUTBOX_RELAY_PUBLISHER}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE}
+    interval-ms: ${OUTBOX_RELAY_INTERVAL_MS}
+    lease-minutes: ${OUTBOX_RELAY_LEASE_MINUTES}
+    lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS}
+    max-retry: ${MAX_RETRY_WEBHOOK}
+    sqs:
+      queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL}
+
 mock-card-server:
   url: ${MOCK_CARD_SERVER_URL}
 
@@ -64,3 +80,5 @@ payment:
       batch-size: ${PAYMENT_RECON_UNKNOWN_BATCH_SIZE}
       lease-seconds: ${PAYMENT_RECON_UNKNOWN_LEASE_SECONDS}
       max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
+aws:
+  region: ${AWS_REGION}

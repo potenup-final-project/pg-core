@@ -21,4 +21,12 @@ interface PaymentMutationRepository {
 
     // 5. 부분/전체 취소 적용 (DONE/PARTIAL_CANCEL -> CANCEL/PARTIAL_CANCEL)
     fun applyCancel(paymentKey: String, cancelAmount: Long): Int
+    // 5. 부분/전체 취소 적용 결과 반환
+    fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult
+}
+
+enum class CancelApplyResult {
+    FULL_CANCELED,
+    PARTIAL_CANCELED,
+    NOOP,
 }

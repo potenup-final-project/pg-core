@@ -12,6 +12,7 @@ import com.pgcore.webhook.application.usecase.repository.WebhookEndpointReposito
 import com.pgcore.webhook.domain.WebhookEndpoint
 import com.pgcore.webhook.domain.exception.WebhookErrorCode
 import com.pgcore.webhook.util.SecretEncryptor
+import com.pgcore.webhook.util.WebhookUrlPolicyValidator
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicLong
 class WebhookEndpointService(
     private val endpointRepo: WebhookEndpointRepository,
     private val secretEncryptor: SecretEncryptor,
+    private val urlPolicyValidator: WebhookUrlPolicyValidator,
     @Value("\${webhook.endpoint.require-https}") private val requireHttps: Boolean,
 ) : CreateWebhookEndpointUseCase,
     UpdateWebhookEndpointUseCase,
@@ -34,9 +36,7 @@ class WebhookEndpointService(
 
     @Transactional
     override fun create(command: CreateEndpointCommand): EndpointResult {
-        val urlValid = if (requireHttps) command.url.startsWith("https://")
-                       else command.url.startsWith("https://") || command.url.startsWith("http://")
-        if (!urlValid) throw BusinessException(WebhookErrorCode.INVALID_URL)
+        urlPolicyValidator.validate(command.url, requireHttps)
         if (endpointRepo.existsByMerchantIdAndUrl(command.merchantId, command.url)) {
             throw BusinessException(WebhookErrorCode.ENDPOINT_ALREADY_EXISTS)
         }
