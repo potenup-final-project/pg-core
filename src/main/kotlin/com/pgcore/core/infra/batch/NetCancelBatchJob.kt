@@ -48,8 +48,18 @@ class NetCancelBatchJob(
         val command = buildNetCancelCommand(tx, payment)
             ?: return skippedDueToMissingInfoResult(tx)
 
-        return netCancelUseCase.execute(command)
-            .also { logTransactionResult(tx.id, it) }
+        return try {
+            netCancelUseCase.execute(command)
+                .also { logTransactionResult(tx.id, it) }
+        } catch (e: Exception) {
+            log.error("[NetCancelBatch] txId={} 예상치 못한 예외 발생. 수동 처리 필요.", tx.id, e)
+            NetCancelResult(
+                txId = tx.id,
+                paymentKey = command.paymentKey,
+                outcome = NetCancelResult.Outcome.ERROR,
+                message = e.message ?: "알 수 없는 오류",
+            )
+        }
     }
 
     /**
