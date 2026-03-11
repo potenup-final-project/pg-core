@@ -28,7 +28,7 @@ enum class CancelApplyResult {
     PARTIAL_CANCELED,
     NOOP;
 
-    fun isFullCancel() = this == PARTIAL_CANCELED
+    fun isFullCancel() = this == FULL_CANCELED
     fun isPartialCancel() = this == PARTIAL_CANCELED
     fun isNoneCancel() = this == NOOP
 }
