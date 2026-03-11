@@ -35,6 +35,7 @@ class CardCancelGatewayHttpClient(
     data class MockCancelResponse(
         val providerRequestId: String,
         val status: String,
+        val providerTxId: String? = null,
         val canceledAmount: Long?,
         val remainingAmount: Long?,
         val failureCode: String?,
@@ -70,6 +71,7 @@ class CardCancelGatewayHttpClient(
 
         return CardCancelResult(
             status = cancelStatus,
+            providerTxId = response.providerTxId,
             canceledAmount = response.canceledAmount,
             remainingAmount = response.remainingAmount,
             failureCode = response.failureCode
