@@ -1,5 +1,6 @@
 package com.pgcore.core.application.usecase.batch
 
+import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.batch.dto.ReconcileCancelCommand
@@ -88,9 +89,9 @@ class ReconcileCancelService(
      * applyCancel은 DONE/PARTIAL_CANCEL 상태에서만 동작하므로, 0건이면 수동 처리가 필요합니다.
      */
     private fun forciblyApplyCancelToPaymentLedger(command: ReconcileCancelCommand) {
-        val affectedRows = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
+        val applyResult = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
 
-        if (affectedRows == 0) {
+        if (applyResult.isNoneCancel()) {
             log.error(
                 "[ReconcileCancel] Payment 원장 차감 실패 — 수동 확인 필요. " +
                         "txId={}, paymentKey={}, amount={}",

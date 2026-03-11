@@ -13,6 +13,12 @@ interface PaymentMutationRepository {
     // 4. 통신 타임아웃/장애 시 불명 상태 마킹 (-> UNKNOWN)
     fun markUnknown(paymentKey: String): Int
 
+    // 4-1. 대사 확정: UNKNOWN/IN_PROGRESS -> DONE
+    fun reconcileApproveSuccess(paymentKey: String): Int
+
+    // 4-2. 대사 확정: UNKNOWN/IN_PROGRESS -> ABORTED
+    fun reconcileApproveFail(paymentKey: String): Int
+
     // 5. 부분/전체 취소 적용 결과 반환
     fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult
 }
@@ -20,5 +26,9 @@ interface PaymentMutationRepository {
 enum class CancelApplyResult {
     FULL_CANCELED,
     PARTIAL_CANCELED,
-    NOOP,
+    NOOP;
+
+    fun isFullCancel() = this == PARTIAL_CANCELED
+    fun isPartialCancel() = this == PARTIAL_CANCELED
+    fun isNoneCancel() = this == NOOP
 }

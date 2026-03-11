@@ -68,5 +68,14 @@ outbox:
 mock-card-server:
   url: ${MOCK_CARD_SERVER_URL}
 
+payment:
+  reconciliation:
+    unknown:
+      enabled: ${PAYMENT_RECON_UNKNOWN_ENABLED}
+      interval-ms: ${PAYMENT_RECON_UNKNOWN_INTERVAL_MS}
+      batch-size: ${PAYMENT_RECON_UNKNOWN_BATCH_SIZE}
+      lease-seconds: ${PAYMENT_RECON_UNKNOWN_LEASE_SECONDS}
+      max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
+
 aws:
   region: ${AWS_REGION}

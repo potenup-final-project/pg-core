@@ -68,6 +68,32 @@ class PaymentMutationRepositoryImpl(
             .toInt()
             .also { em.clear() }
 
+    override fun reconcileApproveSuccess(paymentKey: String): Int =
+        queryFactory
+            .update(payment)
+            .set(payment.status, PaymentStatus.DONE)
+            .set(payment.updatedAt, LocalDateTime.now())
+            .where(
+                payment.paymentKey.eq(paymentKey),
+                payment.status.`in`(PaymentStatus.IN_PROGRESS, PaymentStatus.UNKNOWN),
+            )
+            .execute()
+            .toInt()
+            .also { em.clear() }
+
+    override fun reconcileApproveFail(paymentKey: String): Int =
+        queryFactory
+            .update(payment)
+            .set(payment.status, PaymentStatus.ABORTED)
+            .set(payment.updatedAt, LocalDateTime.now())
+            .where(
+                payment.paymentKey.eq(paymentKey),
+                payment.status.`in`(PaymentStatus.IN_PROGRESS, PaymentStatus.UNKNOWN),
+            )
+            .execute()
+            .toInt()
+            .also { em.clear() }
+
     override fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult {
         val now = LocalDateTime.now()
         
