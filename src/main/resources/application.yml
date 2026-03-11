@@ -1,10 +1,9 @@
 spring:
-  profiles:
-    active: local
   datasource:
-    url: jdbc:mysql://localhost:3306/pgcore?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: validate
@@ -28,22 +27,14 @@ management:
     tags:
       application: pgcore
 
----
-spring:
-  config:
-    activate:
-      on-profile: local
-  datasource:
-    url: jdbc:mysql://localhost:3306/pgcore
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
 
 webhook:
+  auth:
+    enabled: ${WEBHOOK_AUTH_ENABLED}
+    merchant-tokens: ${WEBHOOK_AUTH_MERCHANT_TOKENS}
   dispatcher:
     batch-size: ${DISPATCHER_BATCH_SIZE}
     interval-ms: ${DISPATCHER_INTERVAL_MS}
@@ -62,5 +53,20 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
 
+outbox:
+  relay:
+    enabled: ${OUTBOX_RELAY_ENABLED}
+    publisher: ${OUTBOX_RELAY_PUBLISHER}
+    batch-size: ${OUTBOX_RELAY_BATCH_SIZE}
+    interval-ms: ${OUTBOX_RELAY_INTERVAL_MS}
+    lease-minutes: ${OUTBOX_RELAY_LEASE_MINUTES}
+    lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS}
+    max-retry: ${MAX_RETRY_WEBHOOK}
+    sqs:
+      queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL}
+
 mock-card-server:
-  url: http://localhost:8081
+  url: ${MOCK_CARD_SERVER_URL}
+
+aws:
+  region: ${AWS_REGION}

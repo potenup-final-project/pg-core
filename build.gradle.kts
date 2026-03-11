@@ -47,6 +47,9 @@ dependencies {
     // --- Monitoring ---
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // --- AWS SQS ---
+    implementation("software.amazon.awssdk:sqs:2.30.0")
+
     // --- Testing ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")

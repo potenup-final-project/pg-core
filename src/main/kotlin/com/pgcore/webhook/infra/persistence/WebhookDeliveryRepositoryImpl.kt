@@ -4,6 +4,7 @@ import com.pgcore.webhook.application.usecase.repository.WebhookDeliveryReposito
 import jakarta.persistence.EntityManager
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Repository
 class WebhookDeliveryRepositoryImpl(
@@ -11,7 +12,7 @@ class WebhookDeliveryRepositoryImpl(
 ) : WebhookDeliveryRepository {
 
     @Transactional
-    override fun bulkInsertIgnore(eventId: Long, merchantId: Long, endpointIds: List<Long>, payloadSnapshot: String) {
+    override fun bulkInsertIgnore(eventId: UUID, merchantId: Long, endpointIds: List<Long>, payloadSnapshot: String) {
         if (endpointIds.isEmpty()) return
 
         endpointIds.chunked(BULK_INSERT_CHUNK_SIZE).forEach { chunk ->
@@ -26,7 +27,7 @@ class WebhookDeliveryRepositoryImpl(
                 VALUES $valuesSql
                 """.trimIndent()
             )
-                .setParameter("eventId", eventId)
+                .setParameter("eventId", eventId.toString())
                 .setParameter("merchantId", merchantId)
                 .setParameter("payload", payloadSnapshot)
 
