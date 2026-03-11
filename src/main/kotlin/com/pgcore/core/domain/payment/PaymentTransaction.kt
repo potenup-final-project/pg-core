@@ -174,6 +174,16 @@ class PaymentTransaction protected constructor(
         this.nextAttemptAt = nextAttemptAt
     }
 
+    fun markUnknownForReconciliation(
+        reason: String,
+        nextAttemptAt: LocalDateTime,
+    ) {
+        this.status = PaymentTxStatus.UNKNOWN
+        this.nextAttemptAt = nextAttemptAt
+        this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
+        this.failureMessage = reason.take(255)
+    }
+
     /**
      * [치명 불일치 발생 시 호출]
      * PG사는 승인(Success)되었으나 시스템 원장이 ABORTED 되어 정상적인 반영이 불가능한 경우.
@@ -188,7 +198,7 @@ class PaymentTransaction protected constructor(
     }
 
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
-        if(status.isRetryable())
+        if (!status.isRetryable())
             throw BusinessException(PaymentTransactionErrorCode.INVALID_STATUS_TRANSITION)
 
         attemptCount += 1
