@@ -8,6 +8,7 @@ import com.pgcore.core.domain.payment.QPaymentTransaction.paymentTransaction
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
+import java.time.LocalDateTime
 
 @Repository
 class PaymentTransactionRepositoryImpl(
@@ -29,6 +30,12 @@ class PaymentTransactionRepositoryImpl(
         type: PaymentTxType,
         status: PaymentTxStatus,
     ): PaymentTransaction? = jpaRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(paymentId, type, status)
+
+    override fun findUnknownDueBatch(now: LocalDateTime, batchSize: Int): List<PaymentTransaction> =
+        jpaRepository.findUnknownDueBatch(now, batchSize)
+
+    override fun tryClaimUnknown(txId: Long, now: LocalDateTime, leaseUntil: LocalDateTime): Int =
+        jpaRepository.tryClaimUnknown(txId, now, leaseUntil)
 
     override fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean =
         queryFactory
