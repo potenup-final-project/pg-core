@@ -6,4 +6,5 @@ enum class OutboxEventType {
     PAYMENT_PARTIAL_CANCELED,
     PAYMENT_FAILED,
     PAYMENT_EXPIRED,
+    SETTLEMENT_RECORD,
 }

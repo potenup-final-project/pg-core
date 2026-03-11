@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.pgcore.core.infra.outbox.application.usecase.port.OutboxMessagePublisher
 import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
+import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
+import com.pgcore.core.infra.outbox.infra.publisher.dto.SettlementDispatchMessage
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
@@ -27,6 +29,8 @@ class SqsOutboxMessagePublisher(
     companion object {
         private const val TRANSIENT = "TRANSIENT"
         private const val PERMANENT = "PERMANENT"
+
+        private val SETTLEMENT_EVENT_TYPES = setOf(OutboxEventType.SETTLEMENT_RECORD)
     }
 
     init {
@@ -37,17 +41,32 @@ class SqsOutboxMessagePublisher(
 
     override fun publish(event: OutboxEvent): PublishResult {
         return try {
-            val body = objectMapper.writeValueAsString(
-                WebhookDispatchMessage(
-                    messageId = event.eventId.toString(),
-                    traceId = MDC.get("traceId"),
-                    occurredAt = event.createdAt.toString(),
-                    eventType = event.eventType.name,
-                    eventId = event.eventId,
-                    merchantId = event.merchantId,
-                    payload = event.payload,
+            val body = if (event.eventType in SETTLEMENT_EVENT_TYPES) {
+                objectMapper.writeValueAsString(
+                    SettlementDispatchMessage(
+                        messageId = event.eventId.toString(),
+                        traceId = MDC.get("traceId"),
+                        occurredAt = event.createdAt.toString(),
+                        eventType = event.eventType.name,
+                        eventId = event.eventId,
+                        merchantId = event.merchantId,
+                        aggregateId = event.aggregateId,
+                        payload = event.payload,
+                    )
                 )
-            )
+            } else {
+                objectMapper.writeValueAsString(
+                    WebhookDispatchMessage(
+                        messageId = event.eventId.toString(),
+                        traceId = MDC.get("traceId"),
+                        occurredAt = event.createdAt.toString(),
+                        eventType = event.eventType.name,
+                        eventId = event.eventId,
+                        merchantId = event.merchantId,
+                        payload = event.payload,
+                    )
+                )
+            }
             sqsClient.sendMessage { req ->
                 req.queueUrl(queueUrl)
                     .messageBody(body)

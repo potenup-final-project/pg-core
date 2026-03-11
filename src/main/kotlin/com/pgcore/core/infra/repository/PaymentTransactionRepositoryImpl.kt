@@ -8,6 +8,7 @@ import com.pgcore.core.domain.payment.QPaymentTransaction.paymentTransaction
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
+import java.time.LocalDateTime
 
 @Repository
 class PaymentTransactionRepositoryImpl(
@@ -42,4 +43,10 @@ class PaymentTransactionRepositoryImpl(
                 paymentTransaction.idempotencyKey.eq(idempotencyKey),
             )
             .fetchFirst() != null
+
+    override fun findPendingNetCancels(now: LocalDateTime, limit: Int): List<PaymentTransaction> =
+        jpaRepository.findPendingNetCancelsForUpdate(
+            now = now,
+            pageable = org.springframework.data.domain.PageRequest.of(0, limit),
+        )
 }
