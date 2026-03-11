@@ -4,6 +4,7 @@ import com.pgcore.core.domain.payment.Payment
 
 interface PaymentRepository {
     fun saveAndFlush(payment: Payment): Payment
+    fun findById(paymentId: Long): Payment?
     fun findByMerchantIdAndOrderId(merchantId: Long, orderId: String): Payment?
     fun findByPaymentKey(paymentKey: String): Payment?
 }

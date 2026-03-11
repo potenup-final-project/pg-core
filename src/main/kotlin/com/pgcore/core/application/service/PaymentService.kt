@@ -200,12 +200,17 @@ class PaymentService(
                 balanceAmount = updatedPayment.balanceAmount.amount,
             )
         } catch (e: Exception) {
-            runCatching {
-                cancelStep2Writer.handleExceptionAndMarkUnknown(
-                    txId = txId,
-                    cancelStatus = cancelStatus,
-                    providerTxId = null
-                )
+            val shouldSkipUnknownMark =
+                e is BusinessException && e.code == PaymentErrorCode.PAYMENT_STATE_MISMATCH.code
+
+            if (!shouldSkipUnknownMark) {
+                runCatching {
+                    cancelStep2Writer.handleExceptionAndMarkUnknown(
+                        txId = txId,
+                        cancelStatus = cancelStatus,
+                        providerTxId = null,
+                    )
+                }
             }
             throw e
         }

@@ -67,10 +67,9 @@ class CancelStep2Writer(
         )
 
         when {
-            // 취소 불가능 상태 (상태 불일치/잔액 부족 등): 망취소 마킹 후 도메인 예외 발생
+            // 취소 불가능 상태 (상태 불일치/잔액 부족 등): 망취소 대상으로 마킹
             isNotCancelable -> {
                 transaction.markNeedNetCancel(null)
-                payment.applyCancel(moneyToCancel)
             }
 
             // (b) 멱등성: 이미 성공한 동일 취소 건이 존재하면 성공으로 간주

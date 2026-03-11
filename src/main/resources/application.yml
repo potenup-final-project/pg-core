@@ -2,9 +2,10 @@ spring:
   profiles:
     active: local
   datasource:
-    url: jdbc:mysql://localhost:3306/pgcore?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: validate
@@ -28,16 +29,6 @@ management:
     tags:
       application: pgcore
 
----
-spring:
-  config:
-    activate:
-      on-profile: local
-  datasource:
-    url: jdbc:mysql://localhost:3306/pgcore
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
@@ -63,4 +54,13 @@ springdoc:
     tagsSorter: alpha
 
 mock-card-server:
-  url: http://localhost:8081
+  url: ${MOCK_CARD_SERVER_URL}
+
+payment:
+  reconciliation:
+    unknown:
+      enabled: ${PAYMENT_RECON_UNKNOWN_ENABLED}
+      interval-ms: ${PAYMENT_RECON_UNKNOWN_INTERVAL_MS}
+      batch-size: ${PAYMENT_RECON_UNKNOWN_BATCH_SIZE}
+      lease-seconds: ${PAYMENT_RECON_UNKNOWN_LEASE_SECONDS}
+      max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
