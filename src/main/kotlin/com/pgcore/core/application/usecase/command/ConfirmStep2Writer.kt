@@ -1,5 +1,6 @@
 package com.pgcore.core.application.usecase.command
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.pgcore.core.application.port.out.dto.CardApprovalResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentMutationRepository
@@ -12,16 +13,13 @@ import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.core.infra.outbox.application.service.SettlementEvent
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-
-import com.pgcore.core.application.port.out.dto.RecordSettlementCommand
-import java.time.LocalDateTime
 
 @Component
 class ConfirmStep2Writer(
@@ -243,23 +241,19 @@ class ConfirmStep2Writer(
         providerTxId: String,
     ) {
         val payload = objectMapper.writeValueAsString(
-            RecordSettlementCommand(
-                eventId = transaction.paymentId.toString() + "_" + transaction.id.toString(),
+            SettlementConfirmOutboxPayload(
                 paymentKey = command.paymentKey,
                 transactionId = transaction.id,
                 orderId = command.orderId,
                 providerTxId = providerTxId,
-                merchantId = command.merchantId,
                 transactionType = "PAYMENT",
-                amount = command.amount,
-                eventOccurredAt = LocalDateTime.now()
+                amount = command.amount
             )
         )
         eventPublisher.publishEvent(
-            WebhookEvent(
+            SettlementEvent(
                 merchantId = command.merchantId,
                 aggregateId = transaction.paymentId,
-                eventType = OutboxEventType.SETTLEMENT_RECORD,
                 payload = payload,
             )
         )
@@ -273,4 +267,13 @@ private data class WebhookOutboxPayload(
     val merchantId: Long,
     val providerTxId: String?,
     val failureCode: String?,
+)
+
+data class SettlementConfirmOutboxPayload(
+    val paymentKey: String,
+    val transactionId: Long,
+    val orderId: String,
+    val providerTxId: String,
+    val transactionType: String,
+    val amount: Long,
 )

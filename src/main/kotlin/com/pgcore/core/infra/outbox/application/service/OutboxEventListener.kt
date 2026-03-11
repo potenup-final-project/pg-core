@@ -21,7 +21,19 @@ class OutboxEventListener(
             eventType = event.eventType,
             payload = event.payload,
         )
-        outboxEventRepository.save(webhook).eventId
+        outboxEventRepository.save(webhook)
+        outboxMetrics.recordEventAppended()
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    fun handleSettlement(event: SettlementEvent) {
+        val settlement = OutboxEvent.create(
+            merchantId = event.merchantId,
+            aggregateId = event.aggregateId,
+            eventType = OutboxEventType.SETTLEMENT_RECORD,
+            payload = event.payload,
+        )
+        outboxEventRepository.save(settlement)
         outboxMetrics.recordEventAppended()
     }
 }
@@ -30,5 +42,11 @@ data class WebhookEvent(
     val merchantId: Long,
     val aggregateId: Long,
     val eventType: OutboxEventType,
+    val payload: String,
+)
+
+data class SettlementEvent(
+    val merchantId: Long,
+    val aggregateId: Long,
     val payload: String,
 )
