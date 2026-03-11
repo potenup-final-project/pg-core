@@ -1,5 +1,6 @@
 package com.pgcore.core.infra.repository
 
+import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.payment.QPayment.payment
@@ -67,7 +68,7 @@ class PaymentMutationRepositoryImpl(
             .toInt()
             .also { em.clear() }
 
-    override fun applyCancel(paymentKey: String, cancelAmount: Long): Int {
+    override fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult {
         val now = LocalDateTime.now()
         
         // 1. 전체 취소 시도 (잔액 == 취소금액)
@@ -85,11 +86,11 @@ class PaymentMutationRepositoryImpl(
         // 전체 취소가 성공적으로 처리된 경우 바로 반환 (잔액이 0이 되어야 함)
         if (fullCancelRows > 0) {
             em.clear()
-            return fullCancelRows.toInt()
+            return CancelApplyResult.FULL_CANCELED
         }
 
         // 2. 부분 취소 시도 (잔액 > 취소금액)
-        return queryFactory.update(payment)
+        val partialCancelRows = queryFactory.update(payment)
             .set(payment.balanceAmount.amount, payment.balanceAmount.amount.subtract(cancelAmount))
             .set(payment.status, PaymentStatus.PARTIAL_CANCEL)
             .set(payment.updatedAt, now)
@@ -99,7 +100,11 @@ class PaymentMutationRepositoryImpl(
                 payment.status.`in`(PaymentStatus.DONE, PaymentStatus.PARTIAL_CANCEL)
             )
             .execute()
-            .toInt()
-            .also { em.clear() }
+        em.clear()
+        return if (partialCancelRows > 0) {
+            CancelApplyResult.PARTIAL_CANCELED
+        } else {
+            CancelApplyResult.NOOP
+        }
     }
 }
