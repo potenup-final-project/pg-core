@@ -19,8 +19,6 @@ interface PaymentMutationRepository {
     // 4-2. 대사 확정: UNKNOWN/IN_PROGRESS -> ABORTED
     fun reconcileApproveFail(paymentKey: String): Int
 
-    // 5. 부분/전체 취소 적용 (DONE/PARTIAL_CANCEL -> CANCEL/PARTIAL_CANCEL)
-    fun applyCancel(paymentKey: String, cancelAmount: Long): Int
     // 5. 부분/전체 취소 적용 결과 반환
     fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult
 }
@@ -28,5 +26,13 @@ interface PaymentMutationRepository {
 enum class CancelApplyResult {
     FULL_CANCELED,
     PARTIAL_CANCELED,
-    NOOP,
+    ALREADY_CANCELED,
+    NOT_CANCELLABLE_STATUS,
+    INVALID_CANCEL_AMOUNT,
+    PAYMENT_NOT_FOUND;
+
+    fun isFullCancel() = this == FULL_CANCELED
+    fun isPartialCancel() = this == PARTIAL_CANCELED
+    fun isIdempotentSuccess() = this == ALREADY_CANCELED
+    fun isAppliedSuccess() = this == FULL_CANCELED || this == PARTIAL_CANCELED
 }

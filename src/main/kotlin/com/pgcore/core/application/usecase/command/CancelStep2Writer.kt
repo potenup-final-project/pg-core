@@ -5,13 +5,11 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
-import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
-import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
@@ -24,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional
 class CancelStep2Writer(
     private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
-    private val paymentRepository: PaymentRepository,
     private val eventPublisher: ApplicationEventPublisher,
     private val objectMapper: ObjectMapper,
 ) {
@@ -43,7 +40,6 @@ class CancelStep2Writer(
                 val applyResult = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
 
                 when (applyResult) {
-                    CancelApplyResult.NOOP -> handleApplyCancelFailure(command, transaction)
                     CancelApplyResult.FULL_CANCELED,
                     CancelApplyResult.PARTIAL_CANCELED -> {
                         transaction.markSuccess(null)
@@ -55,6 +51,26 @@ class CancelStep2Writer(
                             remainingAmount = remainingAmount,
                         )
                     }
+
+                    CancelApplyResult.ALREADY_CANCELED -> {
+                        transaction.markSuccess(null)
+                    }
+
+                    CancelApplyResult.NOT_CANCELLABLE_STATUS -> {
+                        transaction.markNeedNetCancel(null)
+                        throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
+                    }
+
+                    CancelApplyResult.INVALID_CANCEL_AMOUNT -> {
+                        transaction.markFail(
+                            code = PaymentTxFailureCode.INTERNAL_ERROR,
+                            message = "취소 금액이 유효하지 않습니다.",
+                        )
+                    }
+
+                    CancelApplyResult.PAYMENT_NOT_FOUND -> {
+                        throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
+                    }
                 }
             } else {
                 val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
@@ -64,43 +80,6 @@ class CancelStep2Writer(
         }
 
         return paymentTransactionRepository.saveAndFlush(transaction)
-    }
-
-    /**
-     * applyCancel UPDATE가 0건일 때 원인을 판별하여 분기합니다.
-     */
-    private fun handleApplyCancelFailure(
-        command: CancelPaymentCommand,
-        transaction: PaymentTransaction,
-    ) {
-        val payment = paymentRepository.findByPaymentKey(command.paymentKey)
-            ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
-
-        val moneyToCancel = Money(command.amount)
-
-        val isNotCancelable = !payment.canCancelWith(moneyToCancel)
-        val isAlreadyProcessed = paymentTransactionRepository.existsSuccessCancelTx(
-            payment.paymentId, command.amount, command.idempotencyKey
-        )
-
-        when {
-            // 취소 불가능 상태 (상태 불일치/잔액 부족 등): 망취소 대상으로 마킹
-            isNotCancelable -> {
-                transaction.markNeedNetCancel(null)
-                paymentTransactionRepository.saveAndFlush(transaction)
-                throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
-            }
-
-            // (b) 멱등성: 이미 성공한 동일 취소 건이 존재하면 성공으로 간주
-            isAlreadyProcessed -> {
-                transaction.markSuccess(null)
-            }
-
-            // (c) 기타 원인 불명 (DB 장애 등): 안전하게 망취소 대상으로 분류
-            else -> {
-                transaction.markNeedNetCancel(null)
-            }
-        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -129,7 +108,7 @@ class CancelStep2Writer(
         val eventType = when (applyResult) {
             CancelApplyResult.FULL_CANCELED -> OutboxEventType.PAYMENT_CANCELED
             CancelApplyResult.PARTIAL_CANCELED -> OutboxEventType.PAYMENT_PARTIAL_CANCELED
-            CancelApplyResult.NOOP -> throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
+            else -> throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
         }
 
         val payload = objectMapper.writeValueAsString(

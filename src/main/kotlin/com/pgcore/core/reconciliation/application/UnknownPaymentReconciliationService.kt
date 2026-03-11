@@ -3,12 +3,14 @@ package com.pgcore.core.reconciliation.application
 import com.pgcore.core.application.port.out.CardInquiryGateway
 import com.pgcore.core.application.port.out.dto.CardInquiryType
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
+import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
+import com.pgcore.core.domain.payment.ReconciliationPendingReason
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
 import com.pgcore.core.utils.BackoffCalculator
@@ -68,7 +70,7 @@ class UnknownPaymentReconciliationService(
 
         val payment = paymentRepository.findById(transaction.paymentId)
         if (payment == null) {
-            scheduleRetry(transaction, "PAYMENT_NOT_FOUND")
+            scheduleRetry(transaction, ReconciliationPendingReason.PAYMENT_NOT_FOUND)
             paymentTransactionRepository.saveAndFlush(transaction)
             return
         }
@@ -79,14 +81,14 @@ class UnknownPaymentReconciliationService(
         try {
             val inquiry = cardInquiryGateway.inquiry(transaction.id.toString())
             if (inquiry == null) {
-                scheduleRetry(transaction, "INQUIRY_NOT_FOUND")
+                scheduleRetry(transaction, ReconciliationPendingReason.INQUIRY_NOT_FOUND)
                 paymentTransactionRepository.saveAndFlush(transaction)
                 return
             }
 
             when (transaction.type) {
                 PaymentTxType.APPROVE -> reconcileApprove(payment.paymentKey, payment.status, transaction, inquiry.type, inquiry.status, inquiry.providerTxId, inquiry.failureCode)
-                PaymentTxType.CANCEL -> reconcileCancel(payment.paymentKey, payment.status, transaction, inquiry.type, inquiry.status, inquiry.providerTxId, inquiry.failureCode)
+                PaymentTxType.CANCEL -> reconcileCancel(payment.paymentKey, transaction, inquiry.type, inquiry.status, inquiry.providerTxId, inquiry.failureCode)
             }
 
             paymentTransactionRepository.saveAndFlush(transaction)
@@ -105,7 +107,7 @@ class UnknownPaymentReconciliationService(
         failureCode: String?,
     ) {
         if (inquiryType != CardInquiryType.APPROVE) {
-            scheduleRetry(transaction, "INQUIRY_TYPE_MISMATCH")
+            scheduleRetry(transaction, ReconciliationPendingReason.INQUIRY_TYPE_MISMATCH)
             return
         }
 
@@ -120,7 +122,7 @@ class UnknownPaymentReconciliationService(
                     }
                     paymentStatus == PaymentStatus.DONE -> transaction.markSuccess(providerTxId)
                     else -> {
-                        scheduleRetry(transaction, "UNEXPECTED_PAYMENT_STATUS:$paymentStatus")
+                        scheduleRetry(transaction, ReconciliationPendingReason.UNEXPECTED_PAYMENT_STATUS)
                         return
                     }
                 }
@@ -136,7 +138,6 @@ class UnknownPaymentReconciliationService(
 
     private fun reconcileCancel(
         paymentKey: String,
-        paymentStatus: PaymentStatus,
         transaction: PaymentTransaction,
         inquiryType: CardInquiryType,
         inquiryStatus: CardProviderResponseStatus,
@@ -144,18 +145,30 @@ class UnknownPaymentReconciliationService(
         failureCode: String?,
     ) {
         if (inquiryType != CardInquiryType.CANCEL) {
-            scheduleRetry(transaction, "INQUIRY_TYPE_MISMATCH")
+            scheduleRetry(transaction, ReconciliationPendingReason.INQUIRY_TYPE_MISMATCH)
             return
         }
 
         when (inquiryStatus) {
             CardProviderResponseStatus.SUCCESS -> {
-                val affected = paymentMutationRepository.applyCancel(paymentKey, transaction.requestedAmount.amount)
-                if (affected == 0 && paymentStatus != PaymentStatus.CANCEL && paymentStatus != PaymentStatus.PARTIAL_CANCEL) {
-                    transaction.markNeedNetCancel(providerTxId)
-                    return
+                val applyResult = paymentMutationRepository.applyCancel(paymentKey, transaction.requestedAmount.amount)
+
+                when (applyResult) {
+                    CancelApplyResult.FULL_CANCELED,
+                    CancelApplyResult.PARTIAL_CANCELED,
+                    CancelApplyResult.ALREADY_CANCELED -> {
+                        transaction.markSuccess(providerTxId)
+                    }
+
+                    CancelApplyResult.NOT_CANCELLABLE_STATUS -> {
+                        scheduleRetry(transaction, ReconciliationPendingReason.UNEXPECTED_PAYMENT_STATUS)
+                    }
+
+                    CancelApplyResult.INVALID_CANCEL_AMOUNT,
+                    CancelApplyResult.PAYMENT_NOT_FOUND -> {
+                        scheduleRetry(transaction, ReconciliationPendingReason.PAYMENT_NOT_FOUND)
+                    }
                 }
-                transaction.markSuccess(providerTxId)
             }
 
             CardProviderResponseStatus.FAIL -> {
@@ -165,7 +178,7 @@ class UnknownPaymentReconciliationService(
         }
     }
 
-    private fun scheduleRetry(transaction: PaymentTransaction, reason: String) {
+    private fun scheduleRetry(transaction: PaymentTransaction, reason: ReconciliationPendingReason) {
         if (transaction.attemptCount >= properties.maxRetryAttempts) {
             transaction.markNeedNetCancel(transaction.providerTxId)
             return
@@ -173,6 +186,6 @@ class UnknownPaymentReconciliationService(
 
         val attemptNo = transaction.attemptCount.coerceAtLeast(1)
         val nextAttemptAt = BackoffCalculator.nextAttemptAt(attemptNo, LocalDateTime.now(clock))
-        transaction.markUnknownForReconciliation("UNKNOWN_RECON_PENDING:$reason", nextAttemptAt)
+        transaction.markReconciliationPending(reason, nextAttemptAt)
     }
 }

@@ -73,9 +73,8 @@ class PaymentTransaction protected constructor(
     var failureMessage: String? = null
         protected set
 
-    @Column(name = "need_net_cancel", nullable = false)
-    var needNetCancel: Boolean = false
-        protected set
+    val needNetCancel: Boolean
+        get() = status == PaymentTxStatus.UNKNOWN && failureCode == PaymentTxFailureCode.NET_CANCEL_PENDING
 
     @Column(name = "attempt_count", nullable = false)
     var attemptCount: Int = 0
@@ -174,14 +173,14 @@ class PaymentTransaction protected constructor(
         this.nextAttemptAt = nextAttemptAt
     }
 
-    fun markUnknownForReconciliation(
-        reason: String,
+    fun markReconciliationPending(
+        reason: ReconciliationPendingReason,
         nextAttemptAt: LocalDateTime,
     ) {
         this.status = PaymentTxStatus.UNKNOWN
         this.nextAttemptAt = nextAttemptAt
         this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
-        this.failureMessage = reason.take(255)
+        this.failureMessage = "UNKNOWN_RECON_PENDING:${reason.name}".take(255)
     }
 
     /**
@@ -192,9 +191,8 @@ class PaymentTransaction protected constructor(
     fun markNeedNetCancel(providerTxId: String?) {
         this.status = PaymentTxStatus.UNKNOWN // 상태는 대사 대상인 UNKNOWN으로 마킹
         this.providerTxId = providerTxId                  // 망취소 시 반드시 필요하므로 멱살 잡고 저장!
-        this.needNetCancel = true             // 배치 프로그램이 긁어갈 플래그 ON
-        this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
-        this.failureMessage = "원장 확정 실패(ABORTED)로 인한 망취소 대기"
+        this.failureCode = PaymentTxFailureCode.NET_CANCEL_PENDING
+        this.failureMessage = PaymentTxFailureCode.NET_CANCEL_PENDING.defaultMessage
     }
 
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
@@ -226,6 +224,13 @@ enum class PaymentTxStatus {
     }
 }
 
+enum class ReconciliationPendingReason {
+    INQUIRY_NOT_FOUND,
+    INQUIRY_TYPE_MISMATCH,
+    PAYMENT_NOT_FOUND,
+    UNEXPECTED_PAYMENT_STATUS,
+}
+
 enum class PaymentTxFailureCode(val defaultMessage: String) {
     CARD_BLOCKED("카드 사용이 정지(분실/도난 신고 또는 이용 제한)되어 승인에 실패했습니다."),
     CARD_EXPIRED("카드 유효기간 만료로 승인에 실패했습니다."),
@@ -236,6 +241,7 @@ enum class PaymentTxFailureCode(val defaultMessage: String) {
     FRAUD_SUSPECTED("부정 사용 의심으로 카드사에서 승인을 거절했습니다."),
     MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
     DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
+    NET_CANCEL_PENDING("원장 확정 실패(ABORTED)로 인한 망취소 대기"),
     INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다.");
 
     fun buildReason(rawCode: String?): String {

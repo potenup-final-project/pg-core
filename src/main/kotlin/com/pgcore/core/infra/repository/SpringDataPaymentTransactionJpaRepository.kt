@@ -21,7 +21,7 @@ interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTrans
             SELECT *
             FROM payment_transactions
             WHERE tx_status = 'UNKNOWN'
-              AND need_net_cancel = false
+              AND (failure_code IS NULL OR failure_code <> 'NET_CANCEL_PENDING')
               AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
             ORDER BY tx_id ASC
             LIMIT :batchSize
@@ -42,7 +42,7 @@ interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTrans
                 updated_at = :now
             WHERE tx_id = :txId
               AND tx_status = 'UNKNOWN'
-              AND need_net_cancel = false
+              AND (failure_code IS NULL OR failure_code <> 'NET_CANCEL_PENDING')
               AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
         """,
         nativeQuery = true,

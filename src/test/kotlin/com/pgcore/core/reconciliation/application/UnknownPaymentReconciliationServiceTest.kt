@@ -16,7 +16,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
@@ -117,7 +116,7 @@ class UnknownPaymentReconciliationServiceTest {
 
         assertEquals(PaymentTxStatus.UNKNOWN, tx.status)
         assertEquals(PaymentStatus.UNKNOWN, tx.status.toPaymentStatus())
-        assertTrue(tx.failureMessage?.startsWith("UNKNOWN_RECON_PENDING:") == true)
+        assertEquals("UNKNOWN_RECON_PENDING:INQUIRY_NOT_FOUND", tx.failureMessage)
     }
 
     @Test
@@ -194,6 +193,6 @@ class UnknownPaymentReconciliationServiceTest {
         service.reconcileOne(3L)
 
         assertEquals(PaymentTxStatus.UNKNOWN, tx.status)
-        assertTrue(tx.failureMessage?.startsWith("UNKNOWN_RECON_PENDING:UNEXPECTED_PAYMENT_STATUS:") == true)
+        assertEquals("UNKNOWN_RECON_PENDING:UNEXPECTED_PAYMENT_STATUS", tx.failureMessage)
     }
 }
