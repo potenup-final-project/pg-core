@@ -175,20 +175,27 @@ class PaymentTransaction protected constructor(
     }
 
     /**
-     * [치명 불일치 발생 시 호출]
      * PG사는 승인(Success)되었으나 시스템 원장이 ABORTED 되어 정상적인 반영이 불가능한 경우.
      * 대사(Reconciliation) 배치가 이 건을 발견하고 PG사에 망취소를 요청할 수 있도록 플래그를 켭니다.
      */
     fun markNeedNetCancel(providerTxId: String?) {
-        this.status = PaymentTxStatus.UNKNOWN // 상태는 대사 대상인 UNKNOWN으로 마킹
-        this.providerTxId = providerTxId                  // 망취소 시 반드시 필요하므로 멱살 잡고 저장!
-        this.needNetCancel = true             // 배치 프로그램이 긁어갈 플래그 ON
+        this.status = PaymentTxStatus.UNKNOWN
+        this.providerTxId = providerTxId
+        this.needNetCancel = true
         this.failureCode = PaymentTxFailureCode.INTERNAL_ERROR
         this.failureMessage = "원장 확정 실패(ABORTED)로 인한 망취소 대기"
     }
 
+    fun markNetCancelDone() {
+        this.status = PaymentTxStatus.FAIL
+        this.needNetCancel = false
+        this.failureCode = PaymentTxFailureCode.NET_CANCEL_DONE
+        this.failureMessage = "카드사 망취소 완료"
+        this.updatedAt = LocalDateTime.now()
+    }
+
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
-        if(status.isRetryable())
+        if (!status.isRetryable())
             throw BusinessException(PaymentTransactionErrorCode.INVALID_STATUS_TRANSITION)
 
         attemptCount += 1
@@ -226,7 +233,8 @@ enum class PaymentTxFailureCode(val defaultMessage: String) {
     FRAUD_SUSPECTED("부정 사용 의심으로 카드사에서 승인을 거절했습니다."),
     MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
     DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
-    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다.");
+    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다."),
+    NET_CANCEL_DONE("카드사 망취소가 완료되었습니다.");
 
     fun buildReason(rawCode: String?): String {
         val suffix = rawCode?.let { " (code=$it)" } ?: ""

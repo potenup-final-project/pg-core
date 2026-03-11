@@ -6,4 +6,6 @@ interface PaymentRepository {
     fun saveAndFlush(payment: Payment): Payment
     fun findByMerchantIdAndOrderId(merchantId: Long, orderId: String): Payment?
     fun findByPaymentKey(paymentKey: String): Payment?
+    fun findByPaymentId(paymentId: Long): Payment?
+    fun findAllByPaymentIds(paymentIds: Collection<Long>): List<Payment>
 }

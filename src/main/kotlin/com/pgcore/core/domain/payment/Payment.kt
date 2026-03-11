@@ -176,6 +176,11 @@ class Payment protected constructor(
         updated()
     }
 
+    fun markAbortedByNetCancel() {
+        status = status.toAbortedByNetCancel()
+        updated()
+    }
+
     fun markUnknown() {
         status = status.toUnknown()
         updated()
