@@ -46,7 +46,6 @@ class CancelStep2Writer(
                 val applyResult = paymentMutationRepository.applyCancel(command.paymentKey, command.amount)
 
                 when (applyResult) {
-                    CancelApplyResult.NOOP -> handleApplyCancelFailure(command, transaction, providerTxId)
                     CancelApplyResult.FULL_CANCELED,
                     CancelApplyResult.PARTIAL_CANCELED -> {
                         transaction.markSuccess(providerTxId)
@@ -64,6 +63,21 @@ class CancelStep2Writer(
                             providerTxId = providerTxId,
                         )
                     }
+
+                    CancelApplyResult.ALREADY_CANCELED -> {
+                        // 이미 취소 반영된 건은 멱등성 성공 처리
+                        transaction.markSuccess(providerTxId)
+                    }
+
+                    CancelApplyResult.NOT_CANCELLABLE_STATUS,
+                    CancelApplyResult.INVALID_CANCEL_AMOUNT -> {
+                        // 카드사 취소는 성공했지만 로컬 원장 반영 실패: 대사 보정 대상으로 분류
+                        transaction.markNeedReconciliation(providerTxId)
+                    }
+
+                    CancelApplyResult.PAYMENT_NOT_FOUND -> {
+                        throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
+                    }
                 }
             } else {
                 val mappedCode = PaymentTxFailureCode.fromRawCode(failureCode)
@@ -75,46 +89,6 @@ class CancelStep2Writer(
         return paymentTransactionRepository.saveAndFlush(transaction)
     }
 
-    /**
-     * applyCancel UPDATE가 0건일 때 원인을 판별하여 분기합니다.
-     */
-    private fun handleApplyCancelFailure(
-        command: CancelPaymentCommand,
-        transaction: PaymentTransaction,
-        providerTxId: String?,
-    ) {
-        val payment = paymentRepository.findByPaymentKey(command.paymentKey)
-            ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
-
-        val isAlreadyProcessed = paymentTransactionRepository.existsSuccessCancelTx(
-            payment.paymentId,
-            command.amount,
-            command.idempotencyKey,
-        )
-
-        when {
-            isAlreadyProcessed -> {
-                transaction.markSuccess(providerTxId)
-            }
-
-            else -> {
-                log.error(
-                    "[CancelReconciliation] 불일치 발생! 카드사 취소 성공 / 로컬 반영 실패. txId={}, paymentKey={}, amount={}, providerTxId={}",
-                    transaction.id,
-                    command.paymentKey,
-                    command.amount,
-                    providerTxId,
-                )
-                transaction.markNeedReconciliation(providerTxId)
-            }
-        }
-    }
-
-    /**
-     * 카드사 API 호출 이후 로컬 DB 처리 중 예외가 발생했을 때 호출됩니다.
-     * - 카드사 취소 성공(SUCCESS): needReconciliation 마킹
-     * - 그 외: UNKNOWN 마킹
-     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun markReconciliationOrUnknownOnException(
         txId: Long,
@@ -146,7 +120,7 @@ class CancelStep2Writer(
         val eventType = when (applyResult) {
             CancelApplyResult.FULL_CANCELED -> OutboxEventType.PAYMENT_CANCELED
             CancelApplyResult.PARTIAL_CANCELED -> OutboxEventType.PAYMENT_PARTIAL_CANCELED
-            CancelApplyResult.NOOP -> throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
+            else -> throw BusinessException(PaymentErrorCode.INTERNAL_ERROR)
         }
 
         val payload = objectMapper.writeValueAsString(

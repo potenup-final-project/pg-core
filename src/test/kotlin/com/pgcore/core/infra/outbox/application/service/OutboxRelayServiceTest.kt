@@ -5,6 +5,7 @@ import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.core.infra.outbox.application.usecase.repository.OutboxEventRepository
 import com.pgcore.core.infra.outbox.application.usecase.repository.dto.OutboxRelayOutcome
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
+import com.pgcore.core.infra.outbox.domain.OutboxRelayPolicy
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.domain.OutboxStatus
 import com.pgcore.core.infra.outbox.infra.metrics.OutboxMetrics
@@ -21,11 +22,13 @@ class OutboxRelayServiceTest {
 
     private val outboxEventRepository = mockk<OutboxEventRepository>()
     private val outboxMessagePublisher = mockk<OutboxMessagePublisher>()
+    private val outboxRelayPolicy = OutboxRelayPolicy()
     private val outboxMetrics = mockk<OutboxMetrics>(relaxed = true)
 
     private val service = OutboxRelayService(
         outboxEventRepository = outboxEventRepository,
         outboxMessagePublisher = outboxMessagePublisher,
+        outboxRelayPolicy = outboxRelayPolicy,
         outboxMetrics = outboxMetrics,
         maxRetryCount = 2,
     )

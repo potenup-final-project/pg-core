@@ -5,7 +5,6 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
-import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.payment.PaymentTransaction
@@ -24,14 +23,12 @@ class CancelStep2WriterTest {
 
     private val paymentMutationRepository = mockk<PaymentMutationRepository>()
     private val paymentTransactionRepository = mockk<PaymentTransactionRepository>()
-    private val paymentRepository = mockk<PaymentRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val objectMapper = ObjectMapper()
 
     private val writer = CancelStep2Writer(
         paymentMutationRepository = paymentMutationRepository,
         paymentTransactionRepository = paymentTransactionRepository,
-        paymentRepository = paymentRepository,
         eventPublisher = eventPublisher,
         objectMapper = objectMapper,
     )
@@ -52,8 +49,8 @@ class CancelStep2WriterTest {
             idempotencyKey = command.idempotencyKey,
         )
         every { paymentTransactionRepository.findById(1L) } returns tx
-        every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.FULL_CANCELED
         every { paymentTransactionRepository.saveAndFlush(tx) } returns tx
+        every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.FULL_CANCELED
 
         val eventSlot = slot<Any>()
         every { eventPublisher.publishEvent(capture(eventSlot)) } returns Unit
@@ -75,7 +72,6 @@ class CancelStep2WriterTest {
         assertEquals(tx.paymentId, webhookEvent.aggregateId)
         assertEquals(OutboxEventType.PAYMENT_CANCELED, webhookEvent.eventType)
         verify(exactly = 1) { eventPublisher.publishEvent(any()) }
-        verify(exactly = 0) { paymentRepository.findByPaymentKey(any()) }
     }
 
     @Test
@@ -94,8 +90,8 @@ class CancelStep2WriterTest {
             idempotencyKey = command.idempotencyKey,
         )
         every { paymentTransactionRepository.findById(2L) } returns tx
-        every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.PARTIAL_CANCELED
         every { paymentTransactionRepository.saveAndFlush(tx) } returns tx
+        every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.PARTIAL_CANCELED
 
         val eventSlot = slot<Any>()
         every { eventPublisher.publishEvent(capture(eventSlot)) } returns Unit
@@ -117,7 +113,6 @@ class CancelStep2WriterTest {
         assertEquals(tx.paymentId, webhookEvent.aggregateId)
         assertEquals(OutboxEventType.PAYMENT_PARTIAL_CANCELED, webhookEvent.eventType)
         verify(exactly = 1) { eventPublisher.publishEvent(any()) }
-        verify(exactly = 0) { paymentRepository.findByPaymentKey(any()) }
     }
 
 }

@@ -15,6 +15,9 @@ interface PaymentTransactionRepository {
         status: PaymentTxStatus
     ): PaymentTransaction?
 
+    fun findUnknownDueBatch(now: LocalDateTime, batchSize: Int): List<PaymentTransaction>
+    fun tryClaimUnknown(txId: Long, now: LocalDateTime, leaseUntil: LocalDateTime): Int
+
     // 동일 멱등키 + 금액으로 이미 성공한 취소 TX가 존재하는지 확인
     fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean
 

@@ -207,7 +207,7 @@ class PaymentService(
                 cancelStep2Writer.markReconciliationOrUnknownOnException(
                     txId = txId,
                     cancelStatus = cancelStatus,
-                    providerTxId = providerTxId
+                    providerTxId = providerTxId,
                 )
             }
             throw e

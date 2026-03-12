@@ -35,7 +35,6 @@ payment:
       batch-size: 10
       lease-seconds: 30
       max-retry-attempts: 6
-
 DB_USER: test
 DB_PASSWORD: test
 WEBHOOK_SECRET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

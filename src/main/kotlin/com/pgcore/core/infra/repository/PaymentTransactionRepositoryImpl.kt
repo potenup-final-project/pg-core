@@ -1,6 +1,7 @@
 package com.pgcore.core.infra.repository
 
 import com.pgcore.core.application.repository.PaymentTransactionRepository
+import com.pgcore.core.domain.payment.PaymentTxFailureCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
@@ -31,6 +32,12 @@ class PaymentTransactionRepositoryImpl(
         status: PaymentTxStatus,
     ): PaymentTransaction? = jpaRepository.findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(paymentId, type, status)
 
+    override fun findUnknownDueBatch(now: LocalDateTime, batchSize: Int): List<PaymentTransaction> =
+        jpaRepository.findUnknownDueBatch(now, batchSize)
+
+    override fun tryClaimUnknown(txId: Long, now: LocalDateTime, leaseUntil: LocalDateTime): Int =
+        jpaRepository.tryClaimUnknown(txId, now, leaseUntil)
+
     override fun existsSuccessCancelTx(paymentId: Long, amount: Long, idempotencyKey: String): Boolean =
         queryFactory
             .selectOne()
@@ -47,6 +54,7 @@ class PaymentTransactionRepositoryImpl(
     override fun findPendingNetCancels(now: LocalDateTime, limit: Int): List<PaymentTransaction> =
         jpaRepository.findPendingNetCancelsForUpdate(
             now = now,
+            netCancelCode = PaymentTxFailureCode.NET_CANCEL_PENDING,
             pageable = org.springframework.data.domain.PageRequest.of(0, limit),
         )
 

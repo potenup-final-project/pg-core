@@ -26,9 +26,16 @@ interface PaymentMutationRepository {
 enum class CancelApplyResult {
     FULL_CANCELED,
     PARTIAL_CANCELED,
-    NOOP;
+    ALREADY_CANCELED,
+    NOT_CANCELLABLE_STATUS,
+    INVALID_CANCEL_AMOUNT,
+    PAYMENT_NOT_FOUND;
 
     fun isFullCancel() = this == FULL_CANCELED
     fun isPartialCancel() = this == PARTIAL_CANCELED
-    fun isNoneCancel() = this == NOOP
+    fun isIdempotentSuccess() = this == ALREADY_CANCELED
+    fun isAppliedSuccess() = this == FULL_CANCELED || this == PARTIAL_CANCELED
+
+    // 기존 호출부 호환용: 성공 반영/멱등 성공이 아닌 경우를 "none"으로 간주
+    fun isNoneCancel() = !isAppliedSuccess() && !isIdempotentSuccess()
 }

@@ -27,6 +27,10 @@ management:
     tags:
       application: pgcore
 
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 logging:
   pattern:
     level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
@@ -76,6 +80,5 @@ payment:
       batch-size: ${PAYMENT_RECON_UNKNOWN_BATCH_SIZE}
       lease-seconds: ${PAYMENT_RECON_UNKNOWN_LEASE_SECONDS}
       max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
-
 aws:
   region: ${AWS_REGION}

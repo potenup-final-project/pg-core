@@ -13,6 +13,9 @@ class PaymentRepositoryImpl(
     override fun saveAndFlush(payment: Payment): Payment =
         jpaRepository.saveAndFlush(payment)
 
+    override fun findById(paymentId: Long): Payment? =
+        jpaRepository.findByIdOrNull(paymentId)
+
     override fun findByMerchantIdAndOrderId(merchantId: Long, orderId: String): Payment? =
         jpaRepository.findByMerchantIdAndOrderId(merchantId, orderId)
 
