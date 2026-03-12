@@ -5,6 +5,7 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
+import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.payment.PaymentTransaction
@@ -13,9 +14,7 @@ import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 
@@ -23,6 +22,7 @@ class CancelStep2WriterTest {
 
     private val paymentMutationRepository = mockk<PaymentMutationRepository>()
     private val paymentTransactionRepository = mockk<PaymentTransactionRepository>()
+    private val paymentRepository = mockk<PaymentRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val objectMapper = ObjectMapper()
 
@@ -31,6 +31,7 @@ class CancelStep2WriterTest {
         paymentTransactionRepository = paymentTransactionRepository,
         eventPublisher = eventPublisher,
         objectMapper = objectMapper,
+        paymentRepository = paymentRepository,
     )
 
     @Test
@@ -52,8 +53,7 @@ class CancelStep2WriterTest {
         every { paymentTransactionRepository.saveAndFlush(tx) } returns tx
         every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.FULL_CANCELED
 
-        val eventSlot = slot<Any>()
-        every { eventPublisher.publishEvent(capture(eventSlot)) } returns Unit
+        every { eventPublisher.publishEvent(any()) } returns Unit
 
         writer.finalizeCancel(
             command = command,
@@ -61,17 +61,23 @@ class CancelStep2WriterTest {
             orderId = "order-full",
             cancelStatus = CardCancelResult(
                 status = CardProviderResponseStatus.SUCCESS,
+                providerTxId = "provider-cancel-full-1",
                 canceledAmount = command.amount,
                 remainingAmount = 0L,
                 failureCode = null,
             ),
         )
 
-        val webhookEvent = eventSlot.captured as WebhookEvent
-        assertEquals(command.merchantId, webhookEvent.merchantId)
-        assertEquals(tx.paymentId, webhookEvent.aggregateId)
-        assertEquals(OutboxEventType.PAYMENT_CANCELED, webhookEvent.eventType)
-        verify(exactly = 1) { eventPublisher.publishEvent(any()) }
+        verify(exactly = 1) {
+            eventPublisher.publishEvent(
+                match {
+                    it is WebhookEvent &&
+                        it.merchantId == command.merchantId &&
+                        it.aggregateId == tx.paymentId &&
+                        it.eventType == OutboxEventType.PAYMENT_CANCELED
+                },
+            )
+        }
     }
 
     @Test
@@ -93,8 +99,7 @@ class CancelStep2WriterTest {
         every { paymentTransactionRepository.saveAndFlush(tx) } returns tx
         every { paymentMutationRepository.applyCancel(command.paymentKey, command.amount) } returns CancelApplyResult.PARTIAL_CANCELED
 
-        val eventSlot = slot<Any>()
-        every { eventPublisher.publishEvent(capture(eventSlot)) } returns Unit
+        every { eventPublisher.publishEvent(any()) } returns Unit
 
         writer.finalizeCancel(
             command = command,
@@ -102,17 +107,23 @@ class CancelStep2WriterTest {
             orderId = "order-partial",
             cancelStatus = CardCancelResult(
                 status = CardProviderResponseStatus.SUCCESS,
+                providerTxId = "provider-cancel-partial-2",
                 canceledAmount = command.amount,
                 remainingAmount = 7000L,
                 failureCode = null,
             ),
         )
 
-        val webhookEvent = eventSlot.captured as WebhookEvent
-        assertEquals(command.merchantId, webhookEvent.merchantId)
-        assertEquals(tx.paymentId, webhookEvent.aggregateId)
-        assertEquals(OutboxEventType.PAYMENT_PARTIAL_CANCELED, webhookEvent.eventType)
-        verify(exactly = 1) { eventPublisher.publishEvent(any()) }
+        verify(exactly = 1) {
+            eventPublisher.publishEvent(
+                match {
+                    it is WebhookEvent &&
+                        it.merchantId == command.merchantId &&
+                        it.aggregateId == tx.paymentId &&
+                        it.eventType == OutboxEventType.PAYMENT_PARTIAL_CANCELED
+                },
+            )
+        }
     }
 
 }

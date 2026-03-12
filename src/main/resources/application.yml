@@ -1,4 +1,7 @@
+
 spring:
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
@@ -82,3 +85,9 @@ payment:
       max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
 aws:
   region: ${AWS_REGION}
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+  sqs:
+    endpoint: ${AWS_SQS_ENDPOINT:}
+server:
+  port: 8080

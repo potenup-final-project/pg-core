@@ -40,8 +40,18 @@ class RequiredPropertiesValidator(
             if (publisher.isNullOrBlank()) {
                 throw IllegalStateException("Missing required environment variable: OUTBOX_RELAY_PUBLISHER (when OUTBOX_RELAY_ENABLED=true)")
             }
-            if (publisher == "sqs" && environment.getProperty("OUTBOX_RELAY_SQS_QUEUE_URL").isNullOrBlank()) {
-                throw IllegalStateException("Missing required environment variable: OUTBOX_RELAY_SQS_QUEUE_URL (when OUTBOX_RELAY_PUBLISHER=sqs)")
+            if (publisher == "sqs") {
+                val sqsRequired = listOf(
+                    "OUTBOX_RELAY_SQS_QUEUE_URL",
+                    "AWS_ACCESS_KEY_ID",
+                    "AWS_SECRET_ACCESS_KEY",
+                )
+                val missingSqsRequired = sqsRequired.filter { environment.getProperty(it).isNullOrBlank() }
+                if (missingSqsRequired.isNotEmpty()) {
+                    throw IllegalStateException(
+                        "Missing required environment variable(s) when OUTBOX_RELAY_PUBLISHER=sqs: ${missingSqsRequired.joinToString(", ")}"
+                    )
+                }
             }
         }
 
