@@ -109,7 +109,7 @@ class UnknownPaymentReconciliationServiceTest {
         every { paymentTransactionRepository.tryClaimUnknown(1L, any(), any()) } returns 1
         every { paymentTransactionRepository.findById(1L) } returns tx
         every { paymentRepository.findById(2L) } returns payment
-        every { cardInquiryGateway.inquiry("1") } returns null
+        every { cardInquiryGateway.inquiry("0") } returns null
         every { paymentTransactionRepository.saveAndFlush(tx) } returns tx
 
         service.reconcileOne(1L)
@@ -142,8 +142,8 @@ class UnknownPaymentReconciliationServiceTest {
         every { paymentTransactionRepository.tryClaimUnknown(2L, any(), any()) } returns 1
         every { paymentTransactionRepository.findById(2L) } returns tx
         every { paymentRepository.findById(3L) } returns payment
-        every { cardInquiryGateway.inquiry("2") } returns CardInquiryResult(
-            providerRequestId = "2",
+        every { cardInquiryGateway.inquiry("0") } returns CardInquiryResult(
+            providerRequestId = "0",
             type = CardInquiryType.APPROVE,
             status = CardProviderResponseStatus.SUCCESS,
             providerTxId = "pg-tx-3",
@@ -179,8 +179,8 @@ class UnknownPaymentReconciliationServiceTest {
         every { paymentTransactionRepository.tryClaimUnknown(3L, any(), any()) } returns 1
         every { paymentTransactionRepository.findById(3L) } returns tx
         every { paymentRepository.findById(4L) } returns payment
-        every { cardInquiryGateway.inquiry("3") } returns CardInquiryResult(
-            providerRequestId = "3",
+        every { cardInquiryGateway.inquiry("0") } returns CardInquiryResult(
+            providerRequestId = "0",
             type = CardInquiryType.APPROVE,
             status = CardProviderResponseStatus.SUCCESS,
             providerTxId = "pg-tx-4",

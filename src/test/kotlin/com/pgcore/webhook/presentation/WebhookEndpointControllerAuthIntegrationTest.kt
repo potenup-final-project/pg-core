@@ -23,16 +23,12 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import com.pgcore.global.exception.GlobalExceptionHandler
 import com.pgcore.webhook.security.WebhookAuthWebMvcConfig
 import com.pgcore.webhook.security.WebhookAuthMetrics
-import com.pgcore.webhook.security.WebhookMerchantAuthInterceptor
-import com.pgcore.webhook.security.WebhookMerchantAuthorizer
 import java.time.LocalDateTime
 
 @WebMvcTest(controllers = [WebhookEndpointController::class])
 @Import(
     GlobalExceptionHandler::class,
     WebhookAuthWebMvcConfig::class,
-    WebhookMerchantAuthInterceptor::class,
-    WebhookMerchantAuthorizer::class,
 )
 @org.springframework.test.context.TestPropertySource(
     properties = [
