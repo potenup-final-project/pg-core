@@ -5,6 +5,7 @@ package com.pgcore.core.application.port.out.dto
  */
 data class CardCancelResult(
     val status: CardProviderResponseStatus,
+    val providerTxId: String?,
     val canceledAmount: Long?,
     val remainingAmount: Long?,
     val failureCode: String?

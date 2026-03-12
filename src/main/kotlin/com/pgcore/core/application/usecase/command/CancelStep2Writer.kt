@@ -5,14 +5,17 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
+import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxFailureCode
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.core.infra.outbox.application.service.SettlementEvent
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -22,9 +25,12 @@ import org.springframework.transaction.annotation.Transactional
 class CancelStep2Writer(
     private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
+    private val paymentRepository: PaymentRepository,
     private val eventPublisher: ApplicationEventPublisher,
     private val objectMapper: ObjectMapper,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun finalizeCancel(
         command: CancelPaymentCommand,
@@ -42,7 +48,7 @@ class CancelStep2Writer(
                 when (applyResult) {
                     CancelApplyResult.FULL_CANCELED,
                     CancelApplyResult.PARTIAL_CANCELED -> {
-                        transaction.markSuccess(null)
+                        transaction.markSuccess(providerTxId)
                         publishWebhookEvent(
                             command = command,
                             orderId = orderId,
@@ -50,22 +56,23 @@ class CancelStep2Writer(
                             applyResult = applyResult,
                             remainingAmount = remainingAmount,
                         )
+                        publishSettlementEvent(
+                            command = command,
+                            orderId = orderId,
+                            transaction = transaction,
+                            providerTxId = providerTxId,
+                        )
                     }
 
                     CancelApplyResult.ALREADY_CANCELED -> {
-                        transaction.markSuccess(null)
+                        // 이미 취소 반영된 건은 멱등성 성공 처리
+                        transaction.markSuccess(providerTxId)
                     }
 
-                    CancelApplyResult.NOT_CANCELLABLE_STATUS -> {
-                        transaction.markNeedNetCancel(null)
-                        throw BusinessException(PaymentErrorCode.PAYMENT_NOT_CANCELLABLE)
-                    }
-
+                    CancelApplyResult.NOT_CANCELLABLE_STATUS,
                     CancelApplyResult.INVALID_CANCEL_AMOUNT -> {
-                        transaction.markFail(
-                            code = PaymentTxFailureCode.INTERNAL_ERROR,
-                            message = "취소 금액이 유효하지 않습니다.",
-                        )
+                        // 카드사 취소는 성공했지만 로컬 원장 반영 실패: 대사 보정 대상으로 분류
+                        transaction.markNeedReconciliation(providerTxId)
                     }
 
                     CancelApplyResult.PAYMENT_NOT_FOUND -> {
@@ -83,15 +90,20 @@ class CancelStep2Writer(
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun handleExceptionAndMarkUnknown(
+    fun markReconciliationOrUnknownOnException(
         txId: Long,
         cancelStatus: CardProviderResponseStatus?,
-        providerTxId: String?
+        providerTxId: String?,
     ) {
         val transaction = paymentTransactionRepository.findById(txId) ?: return
 
         if (cancelStatus == CardProviderResponseStatus.SUCCESS) {
-            transaction.markNeedNetCancel(providerTxId)
+            log.error(
+                "[CancelReconciliation] 카드사 취소 성공 후 로컬 예외 발생 — needReconciliation 마킹. txId={}, providerTxId={}",
+                txId,
+                providerTxId,
+            )
+            transaction.markNeedReconciliation(providerTxId)
         } else {
             transaction.markUnknown()
         }
@@ -119,7 +131,7 @@ class CancelStep2Writer(
                 amount = command.amount,
                 reason = command.reason,
                 remainingAmount = remainingAmount,
-            )
+            ),
         )
 
         eventPublisher.publishEvent(
@@ -128,7 +140,32 @@ class CancelStep2Writer(
                 aggregateId = transaction.paymentId,
                 eventType = eventType,
                 payload = payload,
-            )
+            ),
+        )
+    }
+
+    private fun publishSettlementEvent(
+        command: CancelPaymentCommand,
+        orderId: String,
+        transaction: PaymentTransaction,
+        providerTxId: String?,
+    ) {
+        val payload = objectMapper.writeValueAsString(
+            SettlementCancelOutboxPayload(
+                paymentKey = command.paymentKey,
+                transactionId = transaction.id,
+                orderId = orderId,
+                providerTxId = providerTxId ?: "",
+                transactionType = "CANCEL",
+                amount = command.amount,
+            ),
+        )
+        eventPublisher.publishEvent(
+            SettlementEvent(
+                merchantId = command.merchantId,
+                aggregateId = transaction.paymentId,
+                payload = payload,
+            ),
         )
     }
 }
@@ -140,4 +177,13 @@ private data class WebhookCancelOutboxPayload(
     val amount: Long,
     val reason: String,
     val remainingAmount: Long?,
+)
+
+data class SettlementCancelOutboxPayload(
+    val paymentKey: String,
+    val transactionId: Long,
+    val orderId: String,
+    val providerTxId: String,
+    val transactionType: String,
+    val amount: Long,
 )

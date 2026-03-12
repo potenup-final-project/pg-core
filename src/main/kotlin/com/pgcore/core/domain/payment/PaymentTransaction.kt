@@ -76,6 +76,10 @@ class PaymentTransaction protected constructor(
     val needNetCancel: Boolean
         get() = status == PaymentTxStatus.UNKNOWN && failureCode == PaymentTxFailureCode.NET_CANCEL_PENDING
 
+    @Column(name = "need_reconciliation", nullable = false)
+    var needReconciliation: Boolean = false
+        protected set
+
     @Column(name = "attempt_count", nullable = false)
     var attemptCount: Int = 0
         protected set
@@ -171,6 +175,8 @@ class PaymentTransaction protected constructor(
     ) {
         this.status = PaymentTxStatus.UNKNOWN
         this.nextAttemptAt = nextAttemptAt
+        this.failureCode = null
+        this.failureMessage = null
     }
 
     fun markReconciliationPending(
@@ -184,15 +190,44 @@ class PaymentTransaction protected constructor(
     }
 
     /**
-     * [치명 불일치 발생 시 호출]
      * PG사는 승인(Success)되었으나 시스템 원장이 ABORTED 되어 정상적인 반영이 불가능한 경우.
      * 대사(Reconciliation) 배치가 이 건을 발견하고 PG사에 망취소를 요청할 수 있도록 플래그를 켭니다.
      */
     fun markNeedNetCancel(providerTxId: String?) {
-        this.status = PaymentTxStatus.UNKNOWN // 상태는 대사 대상인 UNKNOWN으로 마킹
-        this.providerTxId = providerTxId                  // 망취소 시 반드시 필요하므로 멱살 잡고 저장!
+        this.status = PaymentTxStatus.UNKNOWN
+        this.providerTxId = providerTxId
         this.failureCode = PaymentTxFailureCode.NET_CANCEL_PENDING
         this.failureMessage = PaymentTxFailureCode.NET_CANCEL_PENDING.defaultMessage
+    }
+
+    fun markNetCancelDone() {
+        this.status = PaymentTxStatus.FAIL
+        this.failureCode = PaymentTxFailureCode.NET_CANCEL_DONE
+        this.failureMessage = "카드사 망취소 완료"
+        this.updatedAt = LocalDateTime.now()
+    }
+
+    /**
+     * 카드사 취소(Cancel)는 성공했으나 로컬 원장(Payment) 상태 반영이 실패한 경우.
+     * 망취소(needNetCancel)와 달리 PG사 측은 이미 정상 처리된 상태이므로,
+     * 대사(Reconciliation) 배치가 로컬 원장만 SUCCESS로 보정해야 함.
+     */
+    fun markNeedReconciliation(providerTxId: String?) {
+        this.status = PaymentTxStatus.UNKNOWN
+        this.providerTxId = providerTxId
+        this.needReconciliation = true
+        this.failureCode = PaymentTxFailureCode.PROVIDER_SUCCESS_LOCAL_FAIL
+        this.failureMessage = "카드사 취소 성공, 로컬 원장 반영 실패 - 대사 보정 필요"
+        this.updatedAt = LocalDateTime.now()
+    }
+
+    /**
+     * 대사(Reconciliation) 배치가 로컬 원장 보정을 완료한 경우.
+     */
+    fun markReconciliationDone() {
+        this.status = PaymentTxStatus.SUCCESS
+        this.needReconciliation = false
+        this.updatedAt = LocalDateTime.now()
     }
 
     fun bumpAttempt(nextAttemptAt: LocalDateTime? = null) {
@@ -242,7 +277,14 @@ enum class PaymentTxFailureCode(val defaultMessage: String) {
     MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
     DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
     NET_CANCEL_PENDING("원장 확정 실패(ABORTED)로 인한 망취소 대기"),
-    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다.");
+    INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다."),
+    NET_CANCEL_DONE("카드사 망취소가 완료되었습니다."),
+    /**
+     * 카드사(Provider)에서는 승인/취소에 성공했으나,
+     * 로컬 원장(Payment) 상태 반영(CAS 업데이트 실패, DB 장애 등)이 실패한 경우.
+     * 대사(Reconciliation) 배치를 통해 로컬 원장을 보정해야 함.
+     */
+    PROVIDER_SUCCESS_LOCAL_FAIL("카드사 처리는 성공했으나 내부 원장 반영에 실패했습니다. 대사 보정이 필요합니다.");
 
     fun buildReason(rawCode: String?): String {
         val suffix = rawCode?.let { " (code=$it)" } ?: ""

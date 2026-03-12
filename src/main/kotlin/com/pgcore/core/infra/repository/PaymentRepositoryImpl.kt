@@ -19,7 +19,12 @@ class PaymentRepositoryImpl(
     override fun findByMerchantIdAndOrderId(merchantId: Long, orderId: String): Payment? =
         jpaRepository.findByMerchantIdAndOrderId(merchantId, orderId)
 
-    override fun findByPaymentKey(paymentKey: String): Payment? {
-        return jpaRepository.findByPaymentKey(paymentKey)
-    }
+    override fun findByPaymentKey(paymentKey: String): Payment? =
+        jpaRepository.findByPaymentKey(paymentKey)
+
+    override fun findByPaymentId(paymentId: Long): Payment? =
+        jpaRepository.findByIdOrNull(paymentId)
+
+    override fun findAllByPaymentIds(paymentIds: Collection<Long>): List<Payment> =
+        jpaRepository.findAllByPaymentIdIn(paymentIds)
 }

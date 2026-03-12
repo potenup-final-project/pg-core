@@ -1,19 +1,26 @@
 package com.pgcore.core.infra.repository
 
 import com.pgcore.core.domain.payment.PaymentTransaction
+import com.pgcore.core.domain.payment.PaymentTxFailureCode
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
+import jakarta.persistence.LockModeType
+import jakarta.persistence.QueryHint
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.jpa.repository.QueryHints
 import org.springframework.data.repository.query.Param
 import java.time.LocalDateTime
 
 interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTransaction, Long> {
+
     fun findFirstByPaymentIdAndTypeAndStatusOrderByIdDesc(
         paymentId: Long,
         type: PaymentTxType,
-        status: PaymentTxStatus
+        status: PaymentTxStatus,
     ): PaymentTransaction?
 
     @Query(
@@ -52,4 +59,34 @@ interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTrans
         @Param("now") now: LocalDateTime,
         @Param("leaseUntil") leaseUntil: LocalDateTime,
     ): Int
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query(
+        """
+        SELECT t FROM PaymentTransaction t
+        WHERE t.status = com.pgcore.core.domain.payment.PaymentTxStatus.UNKNOWN
+          AND t.failureCode = :netCancelCode
+          AND t.attemptCount < 5
+          AND (t.nextAttemptAt IS NULL OR t.nextAttemptAt <= :now)
+        ORDER BY t.id ASC
+        """,
+    )
+    fun findPendingNetCancelsForUpdate(
+        @Param("now") now: LocalDateTime,
+        @Param("netCancelCode") netCancelCode: PaymentTxFailureCode,
+        pageable: Pageable,
+    ): List<PaymentTransaction>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query(
+        """
+        SELECT t FROM PaymentTransaction t
+        WHERE t.needReconciliation = true
+          AND t.status = com.pgcore.core.domain.payment.PaymentTxStatus.UNKNOWN
+        ORDER BY t.id ASC
+        """,
+    )
+    fun findPendingReconciliationsForUpdate(pageable: Pageable): List<PaymentTransaction>
 }

@@ -35,4 +35,7 @@ enum class CancelApplyResult {
     fun isPartialCancel() = this == PARTIAL_CANCELED
     fun isIdempotentSuccess() = this == ALREADY_CANCELED
     fun isAppliedSuccess() = this == FULL_CANCELED || this == PARTIAL_CANCELED
+
+    // 기존 호출부 호환용: 성공 반영/멱등 성공이 아닌 경우를 "none"으로 간주
+    fun isNoneCancel() = !isAppliedSuccess() && !isIdempotentSuccess()
 }

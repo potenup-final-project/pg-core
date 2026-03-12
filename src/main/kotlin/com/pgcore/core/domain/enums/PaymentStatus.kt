@@ -28,6 +28,13 @@ enum class PaymentStatus {
         return ABORTED
     }
 
+    fun toAbortedByNetCancel(): PaymentStatus {
+        if (this != UNKNOWN) {
+            throw BusinessException(PaymentErrorCode.INVALID_ABORT_REQUEST)
+        }
+        return ABORTED
+    }
+
     fun toUnknown(): PaymentStatus {
         requireUnknownable()
         return UNKNOWN
