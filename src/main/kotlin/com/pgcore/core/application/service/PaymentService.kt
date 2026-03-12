@@ -27,6 +27,7 @@ import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.global.logging.annotation.BusinessLog
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -47,6 +48,7 @@ class PaymentService(
     /**
      * ClaimPaymentUseCase implementation
      */
+    @BusinessLog(event = "CLAIM")
     override fun execute(command: ClaimPaymentCommand): ClaimPaymentResult {
         // 1) 선조회: 있으면 멱등 검증 후 기존 반환
         paymentRepository.findByMerchantIdAndOrderId(command.merchantId, command.orderId)
@@ -84,6 +86,7 @@ class PaymentService(
     /**
      * ConfirmPaymentUseCase implementation
      */
+    @BusinessLog(event = "CONFIRM")
     override fun execute(command: ConfirmPaymentCommand): ConfirmPaymentResult {
         // 1) 원장 검증 및 크로스 체크
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)
@@ -145,6 +148,7 @@ class PaymentService(
     /**
      * CancelPaymentUseCase implementation
      */
+    @BusinessLog(event = "CANCEL")
     override fun execute(command: CancelPaymentCommand): CancelPaymentResult {
         // 1) 원장 선조회 및 취소 가능 검증
         val payment = paymentRepository.findByPaymentKey(command.paymentKey)

@@ -1,6 +1,7 @@
 package com.pgcore.webhook.application.service
 
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.global.logging.annotation.BusinessLog
 import com.pgcore.webhook.application.usecase.command.CreateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.UpdateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.dto.CreateEndpointCommand
@@ -35,6 +36,7 @@ class WebhookEndpointService(
     private val testEventIdSeq = AtomicLong(-System.currentTimeMillis())
 
     @Transactional
+    @BusinessLog(event = "WEBHOOK_ENDPOINT_CREATE")
     override fun create(command: CreateEndpointCommand): EndpointResult {
         urlPolicyValidator.validate(command.url, requireHttps)
         if (endpointRepo.existsByMerchantIdAndUrl(command.merchantId, command.url)) {
@@ -53,6 +55,7 @@ class WebhookEndpointService(
     }
 
     @Transactional
+    @BusinessLog(event = "WEBHOOK_ENDPOINT_UPDATE")
     override fun update(command: UpdateEndpointCommand): EndpointResult {
         val endpoint = endpointRepo.findByMerchantIdAndEndpointId(command.merchantId, command.endpointId)
             ?: throw BusinessException(WebhookErrorCode.ENDPOINT_NOT_FOUND)
