@@ -65,7 +65,6 @@ class TechnicalLoggingAspect(
             "result" to SUCCESS,
             "className" to signature.declaringType.simpleName,
             "methodName" to signature.method.name,
-            "layer" to resolveLayer(signature),
             "durationMs" to durationMs,
             "slowThresholdMs" to slowThresholdMs,
             "traceId" to currentTraceId(),
@@ -85,7 +84,6 @@ class TechnicalLoggingAspect(
             "result" to FAIL,
             "className" to signature.declaringType.simpleName,
             "methodName" to signature.method.name,
-            "layer" to resolveLayer(signature),
             "durationMs" to durationMs,
             "traceId" to currentTraceId(),
             "orderFlowId" to MDC.get(MDC_ORDER_FLOW_ID),
@@ -99,15 +97,6 @@ class TechnicalLoggingAspect(
 
     private fun currentTraceId(): String? {
         return MDC.get(MDC_TRACE_ID) ?: TraceContextHolder.get()?.traceId
-    }
-
-    private fun resolveLayer(signature: MethodSignature): String {
-        val typeName = signature.declaringTypeName
-        return when {
-            typeName.contains(".application.") -> "APPLICATION"
-            typeName.contains(".service.") -> "SERVICE"
-            else -> "UNKNOWN"
-        }
     }
 
     private fun serialize(payload: Map<String, Any?>): String {
