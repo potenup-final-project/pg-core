@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.jpa.repository.QueryHints
 import org.springframework.data.repository.query.Param
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTransaction, Long> {
@@ -41,6 +42,7 @@ interface SpringDataPaymentTransactionJpaRepository : JpaRepository<PaymentTrans
     ): List<PaymentTransaction>
 
     @Modifying
+    @Transactional
     @Query(
         value = """
             UPDATE payment_transactions
