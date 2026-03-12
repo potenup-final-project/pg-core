@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component
 @Component
 class TechnicalLoggingAspect(
     private val objectMapper: ObjectMapper,
-    @Value("\${app.logging.technical.slow-threshold-ms:300}")
+    @Value("\${logging.technical.slow-threshold-ms}")
     private val slowThresholdMs: Long,
 ) {
     private val log = LoggerFactory.getLogger(TechnicalLoggingAspect::class.java)

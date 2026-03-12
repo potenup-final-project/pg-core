@@ -34,6 +34,8 @@ management:
 logging:
   pattern:
     level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
+  technical:
+    slow-threshold-ms: ${LOGGING_SLOW_THRESHOLD_MS}
 
 webhook:
   auth:
