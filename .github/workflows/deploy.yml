@@ -39,7 +39,7 @@ jobs:
         run: |
           docker run -d \
             --name pg-core \
-            --network pg-net
+            --network pg-net \
             --env-file /home/ec2-user/app/pg-core.env \
             -p 8080:8080 \
             -p 8081:8081 \
