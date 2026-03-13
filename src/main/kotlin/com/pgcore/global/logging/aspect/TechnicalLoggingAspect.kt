@@ -1,6 +1,7 @@
 package com.pgcore.global.logging.aspect
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.global.logging.annotation.BusinessLog
 import com.pgcore.global.logging.context.FAIL
 import com.pgcore.global.logging.context.MDC_HTTP_METHOD
@@ -43,6 +44,14 @@ class TechnicalLoggingAspect(
         return try {
             val result = joinPoint.proceed()
             val duration = System.currentTimeMillis() - start
+
+            if (result is PublishResult && !result.isSuccess()) {
+                log.warn(serialize(successPayload(signature, duration) + mapOf(
+                    "result" to FAIL,
+                    "errorCode" to result.errorCode,
+                )))
+                return result
+            }
 
             if (duration >= slowThresholdMs) {
                 log.warn(serialize(successPayload(signature, duration)))

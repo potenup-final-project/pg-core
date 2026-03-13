@@ -7,6 +7,8 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
 import java.util.*
 
@@ -20,7 +22,8 @@ import java.util.*
 )
 class OutboxEvent protected constructor(
     @Id
-    @Column(length = 36, nullable = false, updatable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(length = 36, nullable = false, updatable = false, columnDefinition = "CHAR(36)")
     val eventId: UUID = UUID.randomUUID(),
 
     @Column(nullable = false, updatable = false)
