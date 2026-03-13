@@ -32,13 +32,13 @@ jobs:
 
       - name: Stop and remove old container
         run: |
-          docker stop potenup || true
-          docker rm potenup || true
+          docker stop pg-core || true
+          docker rm pg-core || true
 
       - name: Run new container
         run: |
           docker run -d \
-            --name potenup \
+            --name pg-core \
             --env-file /home/ec2-user/app/pg-core.env \
             -p 8080:8080 \
             --restart always \
@@ -47,7 +47,7 @@ jobs:
       - name: Verify container running
         run: |
           sleep 5
-          docker ps | grep potenup
+          docker ps | grep pg-core
 
       - name: Health check
         run: |
@@ -60,5 +60,5 @@ jobs:
             sleep 5
           done
           echo "Service failed to start"
-          docker logs potenup
+          docker logs pg-core
           exit 1
