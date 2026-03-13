@@ -246,7 +246,7 @@ class ConfirmStep2Writer(
                 transactionId = transaction.id,
                 orderId = command.orderId,
                 providerTxId = providerTxId,
-                transactionType = "PAYMENT",
+                transactionType = "APPROVE",
                 amount = command.amount
             )
         )

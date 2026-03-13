@@ -8,8 +8,9 @@ import com.pgcore.core.infra.outbox.domain.QOutboxEvent
 import com.querydsl.jpa.impl.JPAQueryFactory
 import jakarta.persistence.EntityManager
 import jakarta.persistence.LockModeType
-import org.springframework.stereotype.Repository
+import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Timestamp
@@ -22,6 +23,7 @@ class OutboxEventRepositoryImpl(
     private val jdbcTemplate: JdbcTemplate,
 ) : OutboxEventRepository {
     private val qOutbox = QOutboxEvent.outboxEvent
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     override fun save(event: OutboxEvent): OutboxEvent {
@@ -46,16 +48,31 @@ class OutboxEventRepositoryImpl(
 
         if (rows.isEmpty()) return emptyList()
 
-        val ids = rows.map { it.eventId }
-        queryFactory
-            .update(qOutbox)
-            .set(qOutbox.status, OutboxStatus.IN_PROGRESS)
-            .set(qOutbox.updatedAt, LocalDateTime.now())
-            .where(
-                qOutbox.eventId.`in`(ids),
-                qOutbox.status.`in`(OutboxStatus.READY, OutboxStatus.FAILED),
+        val results = jdbcTemplate.batchUpdate(
+            """
+            UPDATE outbox_events
+               SET status = 'IN_PROGRESS',
+                   updated_at = NOW(3)
+             WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
+               AND status IN ('READY', 'FAILED')
+            """.trimIndent(),
+            rows,
+            rows.size,
+        ) { ps, row ->
+            val eventId = row.eventId.toString()
+            ps.setString(1, eventId)
+            ps.setString(2, eventId)
+        }
+
+        val updatedRows = results.sumOf { it.sum() }
+        if (updatedRows != rows.size) {
+            log.error(
+                "[OutboxEventRepository] claim update mismatch expected={} actual={} eventIds={}",
+                rows.size,
+                updatedRows,
+                rows.joinToString(",") { it.eventId.toString() },
             )
-            .execute()
+        }
 
         return rows
     }
@@ -66,24 +83,35 @@ class OutboxEventRepositoryImpl(
 
         val published = outcomes.filter { it.status == OutboxStatus.PUBLISHED }
         if (published.isNotEmpty()) {
-            jdbcTemplate.batchUpdate(
+            val results = jdbcTemplate.batchUpdate(
                 """
                 UPDATE outbox_events
                    SET status = 'PUBLISHED',
                        last_error = NULL,
                        updated_at = NOW(3)
-                 WHERE event_id = ?
+                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
                 """.trimIndent(),
                 published,
                 published.size,
             ) { ps, row ->
-                ps.setString(1, row.eventId.toString())
+                val eventId = row.eventId.toString()
+                ps.setString(1, eventId)
+                ps.setString(2, eventId)
+            }
+            val updatedRows = results.sumOf { it.sum() }
+            if (updatedRows != published.size) {
+                log.error(
+                    "[OutboxEventRepository] published update mismatch expected={} actual={} eventIds={}",
+                    published.size,
+                    updatedRows,
+                    published.joinToString(",") { it.eventId.toString() },
+                )
             }
         }
 
         val failed = outcomes.filter { it.status == OutboxStatus.FAILED }
         if (failed.isNotEmpty()) {
-            jdbcTemplate.batchUpdate(
+            val results = jdbcTemplate.batchUpdate(
                 """
                 UPDATE outbox_events
                    SET status = 'FAILED',
@@ -91,32 +119,54 @@ class OutboxEventRepositoryImpl(
                        next_attempt_at = ?,
                        last_error = ?,
                        updated_at = NOW(3)
-                 WHERE event_id = ?
+                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
                 """.trimIndent(),
                 failed,
                 failed.size,
             ) { ps, row ->
+                val eventId = row.eventId.toString()
                 ps.setTimestamp(1, Timestamp.valueOf(requireNotNull(row.nextAttemptAt)))
                 ps.setString(2, requireNotNull(row.errorCode))
-                ps.setString(3, row.eventId.toString())
+                ps.setString(3, eventId)
+                ps.setString(4, eventId)
+            }
+            val updatedRows = results.sumOf { it.sum() }
+            if (updatedRows != failed.size) {
+                log.error(
+                    "[OutboxEventRepository] failed update mismatch expected={} actual={} eventIds={}",
+                    failed.size,
+                    updatedRows,
+                    failed.joinToString(",") { it.eventId.toString() },
+                )
             }
         }
 
         val dead = outcomes.filter { it.status == OutboxStatus.DEAD }
         if (dead.isNotEmpty()) {
-            jdbcTemplate.batchUpdate(
+            val results = jdbcTemplate.batchUpdate(
                 """
                 UPDATE outbox_events
                    SET status = 'DEAD',
                        last_error = ?,
                        updated_at = NOW(3)
-                 WHERE event_id = ?
+                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
                 """.trimIndent(),
                 dead,
                 dead.size,
             ) { ps, row ->
+                val eventId = row.eventId.toString()
                 ps.setString(1, requireNotNull(row.errorCode))
-                ps.setString(2, row.eventId.toString())
+                ps.setString(2, eventId)
+                ps.setString(3, eventId)
+            }
+            val updatedRows = results.sumOf { it.sum() }
+            if (updatedRows != dead.size) {
+                log.error(
+                    "[OutboxEventRepository] dead update mismatch expected={} actual={} eventIds={}",
+                    dead.size,
+                    updatedRows,
+                    dead.joinToString(",") { it.eventId.toString() },
+                )
             }
         }
     }
