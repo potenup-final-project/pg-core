@@ -16,7 +16,6 @@ class OutboxSqsConfig(
     @Value("\${aws.region}") private val region: String,
     @Value("\${aws.access-key-id:}") private val accessKeyId: String,
     @Value("\${aws.secret-access-key:}") private val secretAccessKey: String,
-    @Value("\${aws.sqs.endpoint:}") private val sqsEndpoint: String,
 ) {
     @Bean
     fun sqsClient(): SqsClient {
@@ -30,10 +29,6 @@ class OutboxSqsConfig(
                     AwsBasicCredentials.create(accessKeyId, secretAccessKey)
                 )
             )
-        }
-
-        if (sqsEndpoint.isNotBlank()) {
-            builder.endpointOverride(URI.create(sqsEndpoint))
         }
 
         return builder.build()
