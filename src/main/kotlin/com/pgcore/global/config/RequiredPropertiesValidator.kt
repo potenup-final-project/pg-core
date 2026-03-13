@@ -42,7 +42,8 @@ class RequiredPropertiesValidator(
             }
             if (publisher == "sqs") {
                 val sqsRequired = listOf(
-                    "OUTBOX_RELAY_SQS_QUEUE_URL",
+                    "OUTBOX_RELAY_SQS_WEBHOOK_QUEUE_URL",
+                    "OUTBOX_RELAY_SQS_SETTLEMENT_QUEUE_URL",
                     "AWS_ACCESS_KEY_ID",
                     "AWS_SECRET_ACCESS_KEY",
                 )
