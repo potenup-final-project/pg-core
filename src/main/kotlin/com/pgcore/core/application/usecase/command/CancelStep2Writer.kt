@@ -5,7 +5,6 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
-import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional
 class CancelStep2Writer(
     private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
-    private val paymentRepository: PaymentRepository,
     private val eventPublisher: ApplicationEventPublisher,
     private val objectMapper: ObjectMapper,
 ) {
@@ -164,6 +162,7 @@ class CancelStep2Writer(
             SettlementEvent(
                 merchantId = command.merchantId,
                 aggregateId = transaction.paymentId,
+                eventType = OutboxEventType.SETTLEMENT_RECORD,
                 payload = payload,
             ),
         )
