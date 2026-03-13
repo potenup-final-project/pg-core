@@ -42,7 +42,6 @@ jobs:
             --network pg-net \
             --env-file /home/ec2-user/app/pg-core.env \
             -p 8080:8080 \
-            -p 8081:8081 \
             --restart always \
             potenup/pg-core:${{ needs.build.outputs.image_tag }}
 
@@ -54,7 +53,7 @@ jobs:
       - name: Health check
         run: |
           for i in {1..10}; do
-            if curl -f http://localhost:8081/actuator/health; then
+            if curl -f http://localhost:8080/actuator/health; then
               echo "Service is healthy"
               exit 0
             fi
