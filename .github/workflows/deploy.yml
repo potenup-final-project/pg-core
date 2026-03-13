@@ -41,6 +41,7 @@ jobs:
             --name pg-core \
             --env-file /home/ec2-user/app/pg-core.env \
             -p 8080:8080 \
+            -p 8081:8081 \
             --restart always \
             potenup/pg-core:${{ needs.build.outputs.image_tag }}
 
