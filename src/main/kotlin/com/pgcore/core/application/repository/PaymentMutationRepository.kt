@@ -13,6 +13,29 @@ interface PaymentMutationRepository {
     // 4. 통신 타임아웃/장애 시 불명 상태 마킹 (-> UNKNOWN)
     fun markUnknown(paymentKey: String): Int
 
-    // 5. 부분/전체 취소 적용 (DONE/PARTIAL_CANCEL -> CANCEL/PARTIAL_CANCEL)
-    fun applyCancel(paymentKey: String, cancelAmount: Long): Int
+    // 4-1. 대사 확정: UNKNOWN/IN_PROGRESS -> DONE
+    fun reconcileApproveSuccess(paymentKey: String): Int
+
+    // 4-2. 대사 확정: UNKNOWN/IN_PROGRESS -> ABORTED
+    fun reconcileApproveFail(paymentKey: String): Int
+
+    // 5. 부분/전체 취소 적용 결과 반환
+    fun applyCancel(paymentKey: String, cancelAmount: Long): CancelApplyResult
+}
+
+enum class CancelApplyResult {
+    FULL_CANCELED,
+    PARTIAL_CANCELED,
+    ALREADY_CANCELED,
+    NOT_CANCELLABLE_STATUS,
+    INVALID_CANCEL_AMOUNT,
+    PAYMENT_NOT_FOUND;
+
+    fun isFullCancel() = this == FULL_CANCELED
+    fun isPartialCancel() = this == PARTIAL_CANCELED
+    fun isIdempotentSuccess() = this == ALREADY_CANCELED
+    fun isAppliedSuccess() = this == FULL_CANCELED || this == PARTIAL_CANCELED
+
+    // 기존 호출부 호환용: 성공 반영/멱등 성공이 아닌 경우를 "none"으로 간주
+    fun isNoneCancel() = !isAppliedSuccess() && !isIdempotentSuccess()
 }

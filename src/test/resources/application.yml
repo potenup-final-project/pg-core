@@ -23,3 +23,29 @@ webhook:
     encryption-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
   endpoint:
     require-https: false
+
+mock-card-server:
+  url: http://localhost:8081
+
+payment:
+  reconciliation:
+    unknown:
+      enabled: false
+      interval-ms: 1000
+      batch-size: 10
+      lease-seconds: 30
+      max-retry-attempts: 6
+DB_USER: test
+DB_PASSWORD: test
+WEBHOOK_SECRET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+WEBHOOK_REQUIRE_HTTPS: false
+WEBHOOK_AUTH_ENABLED: false
+DISPATCHER_BATCH_SIZE: 10
+DISPATCHER_INTERVAL_MS: 999999999
+OUTBOX_RELAY_ENABLED: false
+OUTBOX_RELAY_BATCH_SIZE: 10
+OUTBOX_RELAY_INTERVAL_MS: 1000
+OUTBOX_RELAY_LEASE_MINUTES: 1
+OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS: 1000
+MAX_RETRY_WEBHOOK: 3
+AWS_REGION: ap-northeast-2
