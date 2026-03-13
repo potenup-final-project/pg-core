@@ -30,7 +30,7 @@ class OutboxEventListener(
         val settlement = OutboxEvent.create(
             merchantId = event.merchantId,
             aggregateId = event.aggregateId,
-            eventType = OutboxEventType.SETTLEMENT_RECORD,
+            eventType = event.eventType,
             payload = event.payload,
         )
         outboxEventRepository.save(settlement)
@@ -48,5 +48,6 @@ data class WebhookEvent(
 data class SettlementEvent(
     val merchantId: Long,
     val aggregateId: Long,
+    val eventType: OutboxEventType,
     val payload: String,
 )

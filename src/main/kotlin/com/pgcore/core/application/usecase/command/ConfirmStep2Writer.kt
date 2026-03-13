@@ -63,6 +63,7 @@ class ConfirmStep2Writer(
                     publishSettlementEvent(
                         command = command,
                         transaction = transaction,
+                        eventType = OutboxEventType.SETTLEMENT_RECORD,
                         providerTxId = providerTxId!!,
                     )
                     paymentTransactionRepository.saveAndFlush(transaction)
@@ -118,6 +119,7 @@ class ConfirmStep2Writer(
                     publishSettlementEvent(
                         command = command,
                         transaction = transaction,
+                        eventType = OutboxEventType.SETTLEMENT_RECORD,
                         providerTxId = providerTxId!!,
                     )
                     paymentTransactionRepository.saveAndFlush(transaction)
@@ -238,6 +240,7 @@ class ConfirmStep2Writer(
     private fun publishSettlementEvent(
         command: ConfirmPaymentCommand,
         transaction: PaymentTransaction,
+        eventType: OutboxEventType,
         providerTxId: String,
     ) {
         val payload = objectMapper.writeValueAsString(
@@ -246,7 +249,7 @@ class ConfirmStep2Writer(
                 transactionId = transaction.id,
                 orderId = command.orderId,
                 providerTxId = providerTxId,
-                transactionType = "PAYMENT",
+                transactionType = "CONFIRM",
                 amount = command.amount
             )
         )
@@ -254,6 +257,7 @@ class ConfirmStep2Writer(
             SettlementEvent(
                 merchantId = command.merchantId,
                 aggregateId = transaction.paymentId,
+                eventType = eventType,
                 payload = payload,
             )
         )
