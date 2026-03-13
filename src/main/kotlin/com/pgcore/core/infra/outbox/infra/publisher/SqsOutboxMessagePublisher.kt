@@ -8,6 +8,7 @@ import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
 import com.pgcore.core.infra.outbox.infra.publisher.dto.SettlementDispatchMessage
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -27,6 +28,8 @@ class SqsOutboxMessagePublisher(
     @Value("\${outbox.relay.sqs.webhook-queue-url}") private val webhookQueueUrl: String,
     @Value("\${outbox.relay.sqs.settlement-queue-url}") private val settlementQueueUrl: String,
 ) : OutboxMessagePublisher {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     companion object {
         private const val TRANSIENT = "TRANSIENT"
         private const val PERMANENT = "PERMANENT"
@@ -44,6 +47,7 @@ class SqsOutboxMessagePublisher(
     }
 
     override fun publish(event: OutboxEvent): PublishResult {
+        val targetQueueUrl = resolveQueueUrl(event.eventType)
         return try {
             val body = if (event.eventType in SETTLEMENT_EVENT_TYPES) {
                 objectMapper.writeValueAsString(
@@ -72,23 +76,35 @@ class SqsOutboxMessagePublisher(
                 )
             }
             sqsClient.sendMessage { req ->
-                req.queueUrl(resolveQueueUrl(event.eventType))
+                req.queueUrl(targetQueueUrl)
                     .messageBody(body)
             }
             PublishResult(success = true)
         } catch (e: QueueDoesNotExistException) {
-            PublishResult(success = false, errorCode = "$PERMANENT:SQS_QUEUE_NOT_FOUND:${e.javaClass.simpleName}")
+            toFailureResult(event, targetQueueUrl, "$PERMANENT:SQS_QUEUE_NOT_FOUND:${e.javaClass.simpleName}", e)
         } catch (e: InvalidAddressException) {
-            PublishResult(success = false, errorCode = "$PERMANENT:SQS_INVALID_ADDRESS:${e.javaClass.simpleName}")
+            toFailureResult(event, targetQueueUrl, "$PERMANENT:SQS_INVALID_ADDRESS:${e.javaClass.simpleName}", e)
         } catch (e: InvalidSecurityException) {
-            PublishResult(success = false, errorCode = "$PERMANENT:SQS_INVALID_SECURITY:${e.javaClass.simpleName}")
+            toFailureResult(event, targetQueueUrl, "$PERMANENT:SQS_INVALID_SECURITY:${e.javaClass.simpleName}", e)
         } catch (e: SqsException) {
-            PublishResult(success = false, errorCode = classifySqsException(e))
+            toFailureResult(event, targetQueueUrl, classifySqsException(e), e)
         } catch (e: SdkClientException) {
-            PublishResult(success = false, errorCode = "$TRANSIENT:SQS_CLIENT:${e.javaClass.simpleName}")
+            toFailureResult(event, targetQueueUrl, "$TRANSIENT:SQS_CLIENT:${e.javaClass.simpleName}", e)
         } catch (e: Exception) {
-            PublishResult(success = false, errorCode = "$TRANSIENT:SQS_SEND_FAILED:${e.javaClass.simpleName}")
+            toFailureResult(event, targetQueueUrl, "$TRANSIENT:SQS_SEND_FAILED:${e.javaClass.simpleName}", e)
         }
+    }
+
+    private fun toFailureResult(event: OutboxEvent, queueUrl: String, errorCode: String, e: Exception): PublishResult {
+        log.warn(
+            "[SqsOutboxMessagePublisher] publish failed eventId={} eventType={} queueUrl={} errorCode={}",
+            event.eventId,
+            event.eventType,
+            queueUrl,
+            errorCode,
+            e,
+        )
+        return PublishResult(success = false, errorCode = errorCode)
     }
 
     private fun classifySqsException(e: SqsException): String {

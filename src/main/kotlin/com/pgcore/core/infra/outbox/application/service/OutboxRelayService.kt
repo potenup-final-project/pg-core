@@ -46,6 +46,16 @@ class OutboxRelayService(
                     null
                 }
 
+                if (result != null && !result.isSuccess()) {
+                    log.warn(
+                        "[OutboxRelayService] eventId={} publish returned failure errorCode={} retryCount={} nextAttemptAt={}",
+                        event.eventId,
+                        result.errorCode,
+                        event.retryCount,
+                        event.nextAttemptAt,
+                    )
+                }
+
                 val outcome = outboxRelayPolicy.decide(
                     event = event,
                     result = result,
@@ -53,6 +63,14 @@ class OutboxRelayService(
                 )
 
                 when (outcome.status) {
+                    OutboxStatus.PUBLISHED -> {
+                        log.info(
+                            "[OutboxRelayService] eventId={} published retryCount={}",
+                            event.eventId,
+                            event.retryCount,
+                        )
+                    }
+
                     OutboxStatus.DEAD -> {
                         log.warn("[OutboxRelayService] eventId={} dead reason={}", event.eventId, outcome.errorCode)
                     }
