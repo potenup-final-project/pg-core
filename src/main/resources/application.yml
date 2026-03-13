@@ -18,6 +18,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      timeout: 3s
+
 management:
   server:
     port: 8081
