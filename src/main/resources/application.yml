@@ -26,8 +26,6 @@ spring:
       timeout: 3s
 
 management:
-  server:
-    port: 8081
   endpoints:
     web:
       exposure:
