@@ -72,7 +72,8 @@ outbox:
     lease-sweep-interval-ms: ${OUTBOX_RELAY_LEASE_SWEEP_INTERVAL_MS}
     max-retry: ${MAX_RETRY_WEBHOOK}
     sqs:
-      queue-url: ${OUTBOX_RELAY_SQS_QUEUE_URL}
+      webhook-queue-url: ${OUTBOX_RELAY_SQS_WEBHOOK_QUEUE_URL}
+      settlement-queue-url: ${OUTBOX_RELAY_SQS_SETTLEMENT_QUEUE_URL}
 
 mock-card-server:
   url: ${MOCK_CARD_SERVER_URL}

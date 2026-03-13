@@ -24,7 +24,8 @@ import software.amazon.awssdk.services.sqs.model.SqsException
 class SqsOutboxMessagePublisher(
     private val sqsClient: SqsClient,
     private val objectMapper: ObjectMapper,
-    @Value("\${outbox.relay.sqs.queue-url}") private val queueUrl: String,
+    @Value("\${outbox.relay.sqs.webhook-queue-url}") private val webhookQueueUrl: String,
+    @Value("\${outbox.relay.sqs.settlement-queue-url}") private val settlementQueueUrl: String,
 ) : OutboxMessagePublisher {
     companion object {
         private const val TRANSIENT = "TRANSIENT"
@@ -34,7 +35,10 @@ class SqsOutboxMessagePublisher(
     }
 
     init {
-        require(queueUrl.isNotBlank()) {
+        require(webhookQueueUrl.isNotBlank()) {
+            WebhookOutboxErrorCode.RELAY_SQS_QUEUE_URL_MISSING.message
+        }
+        require(settlementQueueUrl.isNotBlank()) {
             WebhookOutboxErrorCode.RELAY_SQS_QUEUE_URL_MISSING.message
         }
     }
@@ -68,7 +72,7 @@ class SqsOutboxMessagePublisher(
                 )
             }
             sqsClient.sendMessage { req ->
-                req.queueUrl(queueUrl)
+                req.queueUrl(resolveQueueUrl(event.eventType))
                     .messageBody(body)
             }
             PublishResult(success = true)
@@ -94,5 +98,9 @@ class SqsOutboxMessagePublisher(
             statusCode in 400..499 -> "$PERMANENT:SQS_SERVICE:${e.javaClass.simpleName}"
             else -> "$TRANSIENT:SQS_SERVICE:${e.javaClass.simpleName}"
         }
+    }
+
+    private fun resolveQueueUrl(eventType: OutboxEventType): String {
+        return if (eventType in SETTLEMENT_EVENT_TYPES) settlementQueueUrl else webhookQueueUrl
     }
 }

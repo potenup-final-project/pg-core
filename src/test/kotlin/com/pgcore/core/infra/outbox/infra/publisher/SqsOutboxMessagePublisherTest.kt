@@ -3,6 +3,7 @@ package com.pgcore.core.infra.outbox.infra.publisher
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
+import com.pgcore.core.infra.outbox.infra.publisher.dto.SettlementDispatchMessage
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
 import io.mockk.every
 import io.mockk.mockk
@@ -23,12 +24,14 @@ class SqsOutboxMessagePublisherTest {
 
     private val sqsClient = mockk<SqsClient>()
     private val objectMapper = ObjectMapper()
-    private val queueUrl = "https://sqs.ap-northeast-2.amazonaws.com/111111111111/webhook-dispatch"
+    private val webhookQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/111111111111/webhook-dispatch"
+    private val settlementQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/111111111111/payment-event-queue"
 
     private val publisher = SqsOutboxMessagePublisher(
         sqsClient = sqsClient,
         objectMapper = objectMapper,
-        queueUrl = queueUrl,
+        webhookQueueUrl = webhookQueueUrl,
+        settlementQueueUrl = settlementQueueUrl,
     )
 
     @Test
@@ -65,7 +68,7 @@ class SqsOutboxMessagePublisherTest {
             assertEquals(event.eventId.toString(), json["eventId"].asText())
             assertEquals(event.merchantId, json["merchantId"].asLong())
             assertEquals(event.payload, json["payload"].asText())
-            assertEquals(queueUrl, sentRequest!!.queueUrl())
+            assertEquals(webhookQueueUrl, sentRequest!!.queueUrl())
         } finally {
             MDC.clear()
         }
@@ -112,6 +115,33 @@ class SqsOutboxMessagePublisherTest {
 
         assertEquals(false, result.success)
         assertTrue(result.errorCode!!.startsWith("PERMANENT:SQS_QUEUE_NOT_FOUND:"))
+    }
+
+    @Test
+    fun `settlement 이벤트는 settlement queue로 발행한다`() {
+        var sentRequest: SendMessageRequest? = null
+        every { sqsClient.sendMessage(any<Consumer<SendMessageRequest.Builder>>()) } answers {
+            val consumer = firstArg<Consumer<SendMessageRequest.Builder>>()
+            val builder = SendMessageRequest.builder()
+            consumer.accept(builder)
+            sentRequest = builder.build()
+            SendMessageResponse.builder().messageId("aws-msg-id").build()
+        }
+
+        val event = OutboxEvent.create(
+            merchantId = 99L,
+            aggregateId = 1005L,
+            eventType = OutboxEventType.SETTLEMENT_RECORD,
+            payload = "{\"amount\":1000}",
+        )
+
+        val result = publisher.publish(event)
+
+        assertEquals(true, result.success)
+        val json = objectMapper.readTree(sentRequest!!.messageBody())
+        assertEquals(SettlementDispatchMessage.CURRENT_SCHEMA_VERSION, json["schemaVersion"].asInt())
+        assertEquals(event.aggregateId, json["aggregateId"].asLong())
+        assertEquals(settlementQueueUrl, sentRequest!!.queueUrl())
     }
 
     @Test
