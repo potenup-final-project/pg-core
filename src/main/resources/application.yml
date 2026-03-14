@@ -9,6 +9,7 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
+    name: pg-core
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
@@ -35,13 +36,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus
+        include: health,info,prometheus,metrics
+
   endpoint:
     health:
       show-details: always
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
   metrics:
     tags:
-      application: pgcore
+      application: pg-core
+      env: prod
     distribution:
       percentiles-histogram:
         http.server.requests: true
