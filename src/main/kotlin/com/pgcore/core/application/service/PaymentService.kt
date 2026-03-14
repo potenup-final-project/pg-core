@@ -224,6 +224,9 @@ class PaymentService(
     }
 
     private fun validateCancelRequest(payment: Payment, command: CancelPaymentCommand) {
+        if (command.amount <= 0) {
+            throw BusinessException(PaymentErrorCode.INVALID_CANCEL_AMOUNT)
+        }
         payment.status.requireCancelable()
         if (payment.balanceAmount < Money(command.amount)) {
             throw BusinessException(PaymentErrorCode.EXCEED_CANCEL_AMOUNT)
