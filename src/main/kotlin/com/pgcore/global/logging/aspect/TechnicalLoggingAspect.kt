@@ -20,10 +20,19 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 @Aspect
-@Component
+@Component("pgcoreTechnicalLoggingAspect")
+@ConditionalOnProperty(
+    prefix = "pgcore.logging.legacy",
+    name = ["enabled"],
+    havingValue = "true",
+    matchIfMissing = false
+)
+@Profile("pgcore-legacy-logging")
 class TechnicalLoggingAspect(
     private val objectMapper: ObjectMapper,
     @Value("\${logging.technical.slow-threshold-ms}")

@@ -48,12 +48,13 @@ class SqsOutboxMessagePublisher(
 
     override fun publish(event: OutboxEvent): PublishResult {
         val targetQueueUrl = resolveQueueUrl(event.eventType)
+        val traceId = currentTraceId(event)
         return try {
             val body = if (event.eventType in SETTLEMENT_EVENT_TYPES) {
                 objectMapper.writeValueAsString(
                     SettlementDispatchMessage(
                         messageId = event.eventId.toString(),
-                        traceId = MDC.get("traceId"),
+                        traceId = traceId,
                         occurredAt = event.createdAt.toString(),
                         eventType = event.eventType.name,
                         eventId = event.eventId,
@@ -66,7 +67,7 @@ class SqsOutboxMessagePublisher(
                 objectMapper.writeValueAsString(
                     WebhookDispatchMessage(
                         messageId = event.eventId.toString(),
-                        traceId = MDC.get("traceId"),
+                        traceId = traceId,
                         occurredAt = event.createdAt.toString(),
                         eventType = event.eventType.name,
                         eventId = event.eventId,
@@ -79,7 +80,7 @@ class SqsOutboxMessagePublisher(
                 req.queueUrl(targetQueueUrl)
                     .messageBody(body)
             }
-            PublishResult(success = true)
+            PublishResult(success = true, targetQueue = targetQueueUrl.substringAfterLast("/"))
         } catch (e: QueueDoesNotExistException) {
             toFailureResult(event, targetQueueUrl, "$PERMANENT:SQS_QUEUE_NOT_FOUND:${e.javaClass.simpleName}", e)
         } catch (e: InvalidAddressException) {
@@ -104,7 +105,7 @@ class SqsOutboxMessagePublisher(
             errorCode,
             e,
         )
-        return PublishResult(success = false, errorCode = errorCode)
+        return PublishResult(success = false, errorCode = errorCode, targetQueue = queueUrl)
     }
 
     private fun classifySqsException(e: SqsException): String {
@@ -118,5 +119,21 @@ class SqsOutboxMessagePublisher(
 
     private fun resolveQueueUrl(eventType: OutboxEventType): String {
         return if (eventType in SETTLEMENT_EVENT_TYPES) settlementQueueUrl else webhookQueueUrl
+    }
+
+    private fun currentTraceId(event: OutboxEvent): String? {
+        event.traceId?.takeIf { it.isNotBlank() }?.let { return it }
+
+        val mdcTrace = MDC.get("traceId")?.takeIf { it.isNotBlank() }
+        if (mdcTrace != null) {
+            return mdcTrace
+        }
+
+        return runCatching {
+            objectMapper.readTree(event.payload)
+                .path("traceId")
+                .asText()
+                .takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 }

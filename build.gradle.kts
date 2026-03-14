@@ -17,8 +17,56 @@ java {
     }
 }
 
+val gopLoggingVersion = (findProperty("gopLoggingVersion") as String?)
+    ?: System.getenv("GOP_LOGGING_VERSION")
+    ?: readDotEnvValue("GOP_LOGGING_VERSION")
+    ?: throw IllegalStateException("GOP_LOGGING_VERSION is required. Set it in pg_core/.env or environment variable.")
+
+val githubPackagesUrl = (findProperty("githubPackagesUrl") as String?)
+    ?: System.getenv("GITHUB_PACKAGES_URL")
+    ?: readDotEnvValue("GITHUB_PACKAGES_URL")
+    ?: throw IllegalStateException("GITHUB_PACKAGES_URL is required. Set it in pg_core/.env or environment variable.")
+
+val githubPackagesUser = (findProperty("githubPackagesUser") as String?)
+    ?: System.getenv("GITHUB_ACTOR")
+    ?: System.getenv("GITHUB_PACKAGES_USER")
+    ?: readDotEnvValue("GITHUB_PACKAGES_USER")
+    ?: throw IllegalStateException("GITHUB_PACKAGES_USER is required. Set it in pg_core/.env or environment variable.")
+
+val githubPackagesToken = (findProperty("githubPackagesToken") as String?)
+    ?: System.getenv("GITHUB_TOKEN")
+    ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+    ?: readDotEnvValue("GITHUB_PACKAGES_TOKEN")
+    ?: throw IllegalStateException("GITHUB_PACKAGES_TOKEN is required. Set it in pg_core/.env or environment variable.")
+
+fun readDotEnvValue(key: String): String? {
+    val envFile = rootProject.file(".env")
+    if (!envFile.exists()) return null
+
+    return envFile.readLines()
+        .asSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("#") }
+        .mapNotNull { line ->
+            val idx = line.indexOf('=')
+            if (idx <= 0) return@mapNotNull null
+            val k = line.substring(0, idx).trim()
+            val v = line.substring(idx + 1).trim().removeSurrounding("\"")
+            if (k == key && v.isNotEmpty()) v else null
+        }
+        .firstOrNull()
+}
+
 repositories {
     mavenCentral()
+    mavenLocal()
+    maven {
+        url = uri(githubPackagesUrl)
+        credentials {
+            username = githubPackagesUser
+            password = githubPackagesToken
+        }
+    }
 }
 
 dependencies {
@@ -63,6 +111,10 @@ dependencies {
 
     // --- Redis ---
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+    // --- gop logging lib ---
+    implementation("com.gop.logging:gop-logging-contract:$gopLoggingVersion")
+    implementation("com.gop.logging:gop-logging-spring:$gopLoggingVersion")
 }
 
 kotlin {
