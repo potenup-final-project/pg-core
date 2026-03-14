@@ -1,4 +1,10 @@
 
+LOG_SERVICE_NAME: ${LOG_SERVICE_NAME}
+pgcore:
+  logging:
+    legacy:
+      enabled: ${PGCORE_LEGACY_LOGGING_ENABLED:false}
+
 spring:
   config:
     import: optional:file:.env[.properties]
