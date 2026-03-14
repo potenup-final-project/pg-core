@@ -18,23 +18,25 @@ java {
 }
 
 val gopLoggingVersion = (findProperty("gopLoggingVersion") as String?)
+    ?: System.getenv("LOGGING_LIB_VERSION")
     ?: System.getenv("GOP_LOGGING_VERSION")
     ?: readDotEnvValue("GOP_LOGGING_VERSION")
     ?: throw IllegalStateException("GOP_LOGGING_VERSION is required. Set it in pg_core/.env or environment variable.")
 
 val githubPackagesUrl = (findProperty("githubPackagesUrl") as String?)
+    ?: System.getenv("PACKAGES_URL")
     ?: System.getenv("GITHUB_PACKAGES_URL")
     ?: readDotEnvValue("GITHUB_PACKAGES_URL")
     ?: throw IllegalStateException("GITHUB_PACKAGES_URL is required. Set it in pg_core/.env or environment variable.")
 
 val githubPackagesUser = (findProperty("githubPackagesUser") as String?)
-    ?: System.getenv("GITHUB_ACTOR")
+    ?: System.getenv("PACKAGES_USER")
     ?: System.getenv("GITHUB_PACKAGES_USER")
     ?: readDotEnvValue("GITHUB_PACKAGES_USER")
     ?: throw IllegalStateException("GITHUB_PACKAGES_USER is required. Set it in pg_core/.env or environment variable.")
 
 val githubPackagesToken = (findProperty("githubPackagesToken") as String?)
-    ?: System.getenv("GITHUB_TOKEN")
+    ?: System.getenv("PACKAGES_TOKEN")
     ?: System.getenv("GITHUB_PACKAGES_TOKEN")
     ?: readDotEnvValue("GITHUB_PACKAGES_TOKEN")
     ?: throw IllegalStateException("GITHUB_PACKAGES_TOKEN is required. Set it in pg_core/.env or environment variable.")

@@ -27,10 +27,19 @@ on:
         required: true
       DOCKERHUB_TOKEN:
         required: true
+      PACKAGES_USER:
+        required: true
+      PACKAGES_TOKEN:
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      LOGGING_LIB_VERSION: ${{ vars.LOGGING_LIB_VERSION }}
+      PACKAGES_URL: ${{ vars.PACKAGES_URL }}
+      PACKAGES_USER: ${{ secrets.PACKAGES_USER }}
+      PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
     outputs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
 
@@ -47,6 +56,13 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
+
+      - name: Validate package registry build variables
+        run: |
+          test -n "$LOGGING_LIB_VERSION" || (echo "LOGGING_LIB_VERSION is not set" && exit 1)
+          test -n "$PACKAGES_URL" || (echo "PACKAGES_URL is not set" && exit 1)
+          test -n "$PACKAGES_USER" || (echo "PACKAGES_USER is not set" && exit 1)
+          test -n "$PACKAGES_TOKEN" || (echo "PACKAGES_TOKEN is not set" && exit 1)
 
       - name: Build jar
         run: ./gradlew clean bootJar -x test --no-daemon
