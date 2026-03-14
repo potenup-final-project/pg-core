@@ -4,6 +4,9 @@ import com.pgcore.core.infra.outbox.application.usecase.repository.OutboxEventRe
 import com.pgcore.core.infra.outbox.domain.OutboxEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.infra.metrics.OutboxMetrics
+import com.pgcore.global.logging.context.MDC_TRACE_ID
+import com.pgcore.global.logging.context.TraceContextHolder
+import org.slf4j.MDC
 import org.springframework.stereotype.Service
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -20,6 +23,7 @@ class OutboxEventListener(
             aggregateId = event.aggregateId,
             eventType = event.eventType,
             payload = event.payload,
+            traceId = currentTraceId(),
         )
         outboxEventRepository.save(webhook)
         outboxMetrics.recordEventAppended()
@@ -32,9 +36,15 @@ class OutboxEventListener(
             aggregateId = event.aggregateId,
             eventType = event.eventType,
             payload = event.payload,
+            traceId = currentTraceId(),
         )
         outboxEventRepository.save(settlement)
         outboxMetrics.recordEventAppended()
+    }
+
+    private fun currentTraceId(): String? {
+        return MDC.get(MDC_TRACE_ID)?.takeIf { it.isNotBlank() }
+            ?: TraceContextHolder.get()?.traceId?.takeIf { it.isNotBlank() }
     }
 }
 

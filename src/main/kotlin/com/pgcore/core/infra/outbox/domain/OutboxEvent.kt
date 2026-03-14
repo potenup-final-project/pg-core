@@ -39,6 +39,9 @@ class OutboxEvent protected constructor(
     @Column(columnDefinition = "JSON", nullable = false, updatable = false)
     val payload: String,
 
+    @Column(length = 128, nullable = true, updatable = false)
+    val traceId: String? = null,
+
     status: OutboxStatus = OutboxStatus.READY,
     retryCount: Int = 0,
     nextAttemptAt: LocalDateTime = LocalDateTime.now(),
@@ -74,11 +77,13 @@ class OutboxEvent protected constructor(
             aggregateId: Long,
             eventType: OutboxEventType,
             payload: String,
+            traceId: String? = null,
         ): OutboxEvent = OutboxEvent(
             merchantId = merchantId,
             aggregateId = aggregateId,
             eventType = eventType,
             payload = payload,
+            traceId = traceId,
         )
     }
 
