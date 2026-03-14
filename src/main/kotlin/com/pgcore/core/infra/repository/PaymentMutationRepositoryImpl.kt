@@ -106,7 +106,7 @@ class PaymentMutationRepositoryImpl(
             .fetchOne()
             ?: return CancelApplyResult.PAYMENT_NOT_FOUND
 
-        if (lockedPayment.status == PaymentStatus.CANCEL || lockedPayment.status == PaymentStatus.PARTIAL_CANCEL) {
+        if (lockedPayment.status == PaymentStatus.CANCEL) {
             return CancelApplyResult.ALREADY_CANCELED
         }
 
