@@ -27,10 +27,19 @@ on:
         required: true
       DOCKERHUB_TOKEN:
         required: true
+      GITHUB_PACKAGES_USER:
+        required: true
+      GITHUB_PACKAGES_TOKEN:
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GOP_LOGGING_VERSION: ${{ vars.GOP_LOGGING_VERSION }}
+      GITHUB_PACKAGES_URL: ${{ vars.GITHUB_PACKAGES_URL }}
+      GITHUB_PACKAGES_USER: ${{ secrets.GITHUB_PACKAGES_USER }}
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
     outputs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
 
@@ -47,6 +56,13 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
+
+      - name: Validate package registry build variables
+        run: |
+          test -n "$GOP_LOGGING_VERSION" || (echo "GOP_LOGGING_VERSION is not set" && exit 1)
+          test -n "$GITHUB_PACKAGES_URL" || (echo "GITHUB_PACKAGES_URL is not set" && exit 1)
+          test -n "$GITHUB_PACKAGES_USER" || (echo "GITHUB_PACKAGES_USER is not set" && exit 1)
+          test -n "$GITHUB_PACKAGES_TOKEN" || (echo "GITHUB_PACKAGES_TOKEN is not set" && exit 1)
 
       - name: Build jar
         run: ./gradlew clean bootJar -x test --no-daemon
