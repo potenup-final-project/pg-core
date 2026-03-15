@@ -6,6 +6,11 @@ pgcore:
       enabled: ${PGCORE_LEGACY_LOGGING_ENABLED:false}
 
 spring:
+  web:
+    resources:
+      add-mappings: false
+    mvc:
+      throw-exception-if-no-handler-found: true
   config:
     import: optional:file:.env[.properties]
   datasource:
