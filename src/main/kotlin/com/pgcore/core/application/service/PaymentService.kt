@@ -22,6 +22,7 @@ import com.pgcore.core.application.usecase.command.dto.ConfirmPaymentResult
 import com.pgcore.core.common.PaymentKeyGenerator
 import com.pgcore.core.domain.enums.PaymentStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
+import com.pgcore.core.infra.metrics.PaymentApprovalMetrics
 import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
@@ -39,6 +40,7 @@ class PaymentService(
     private val cardApprovalGateway: CardApprovalGateway,
     private val confirmStep1Writer: ConfirmStep1Writer,
     private val confirmStep2Writer: ConfirmStep2Writer,
+    private val paymentApprovalMetrics: PaymentApprovalMetrics,
     private val cardCancelGateway: CardCancelGateway,
     private val cancelStep1Writer: CancelStep1Writer,
     private val cancelStep2Writer: CancelStep2Writer,
@@ -107,6 +109,7 @@ class PaymentService(
         val txId = confirmStep1Writer.acquireInProgressAndCreateTx(command, payment.paymentId)
         var approvalStatus: CardProviderResponseStatus? = null
         var providerTxId: String? = null
+        var metricRecorded = false
 
         try {
             // 3) 외부 API 통신 (TX 밖)
@@ -128,8 +131,23 @@ class PaymentService(
                 approvalResult = providerResponse
             )
 
+            if (approvalStatus == CardProviderResponseStatus.SUCCESS) {
+                paymentApprovalMetrics.recordSuccess()
+            } else {
+                paymentApprovalMetrics.recordFail()
+            }
+            metricRecorded = true
+
             return ConfirmPaymentResult.from(transaction, command.paymentKey)
         } catch (e: Exception) {
+            if (!metricRecorded) {
+                if (approvalStatus == CardProviderResponseStatus.SUCCESS) {
+                    paymentApprovalMetrics.recordSuccess()
+                } else {
+                    paymentApprovalMetrics.recordFail()
+                }
+            }
+
             runCatching {
                 confirmStep2Writer.handleExceptionAndMarkUnknown(
                     command = command,

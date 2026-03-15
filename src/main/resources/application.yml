@@ -103,6 +103,9 @@ mock-card-server:
   url: ${MOCK_CARD_SERVER_URL}
 
 payment:
+  approval:
+    metrics:
+      pg: mock-card
   reconciliation:
     unknown:
       enabled: ${PAYMENT_RECON_UNKNOWN_ENABLED}
