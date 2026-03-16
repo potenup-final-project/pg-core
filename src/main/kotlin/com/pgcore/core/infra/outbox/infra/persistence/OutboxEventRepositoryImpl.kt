@@ -53,7 +53,7 @@ class OutboxEventRepositoryImpl(
             UPDATE outbox_events
                SET status = 'IN_PROGRESS',
                    updated_at = NOW(3)
-             WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
+             WHERE event_id = ?
                AND status IN ('READY', 'FAILED')
             """.trimIndent(),
             rows,
@@ -61,7 +61,6 @@ class OutboxEventRepositoryImpl(
         ) { ps, row ->
             val eventId = row.eventId.toString()
             ps.setString(1, eventId)
-            ps.setString(2, eventId)
         }
 
         val updatedRows = results.sumOf { it.sum() }
@@ -89,14 +88,13 @@ class OutboxEventRepositoryImpl(
                    SET status = 'PUBLISHED',
                        last_error = NULL,
                        updated_at = NOW(3)
-                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
+                 WHERE event_id = ?
                 """.trimIndent(),
                 published,
                 published.size,
             ) { ps, row ->
                 val eventId = row.eventId.toString()
                 ps.setString(1, eventId)
-                ps.setString(2, eventId)
             }
             val updatedRows = results.sumOf { it.sum() }
             if (updatedRows != published.size) {
@@ -119,7 +117,7 @@ class OutboxEventRepositoryImpl(
                        next_attempt_at = ?,
                        last_error = ?,
                        updated_at = NOW(3)
-                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
+                 WHERE event_id = ?
                 """.trimIndent(),
                 failed,
                 failed.size,
@@ -128,7 +126,6 @@ class OutboxEventRepositoryImpl(
                 ps.setTimestamp(1, Timestamp.valueOf(requireNotNull(row.nextAttemptAt)))
                 ps.setString(2, requireNotNull(row.errorCode))
                 ps.setString(3, eventId)
-                ps.setString(4, eventId)
             }
             val updatedRows = results.sumOf { it.sum() }
             if (updatedRows != failed.size) {
@@ -149,7 +146,7 @@ class OutboxEventRepositoryImpl(
                    SET status = 'DEAD',
                        last_error = ?,
                        updated_at = NOW(3)
-                 WHERE (event_id = ? OR HEX(event_id) = REPLACE(UPPER(?), '-', ''))
+                 WHERE event_id = ?
                 """.trimIndent(),
                 dead,
                 dead.size,
@@ -157,7 +154,6 @@ class OutboxEventRepositoryImpl(
                 val eventId = row.eventId.toString()
                 ps.setString(1, requireNotNull(row.errorCode))
                 ps.setString(2, eventId)
-                ps.setString(3, eventId)
             }
             val updatedRows = results.sumOf { it.sum() }
             if (updatedRows != dead.size) {

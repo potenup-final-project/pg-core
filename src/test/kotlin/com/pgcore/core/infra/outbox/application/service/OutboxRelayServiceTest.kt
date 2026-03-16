@@ -1,5 +1,7 @@
 package com.pgcore.core.infra.outbox.application.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.gop.logging.contract.StructuredLogger
 import com.pgcore.core.infra.outbox.application.usecase.port.OutboxMessagePublisher
 import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
 import com.pgcore.core.infra.outbox.application.usecase.repository.OutboxEventRepository
@@ -24,12 +26,16 @@ class OutboxRelayServiceTest {
     private val outboxMessagePublisher = mockk<OutboxMessagePublisher>()
     private val outboxRelayPolicy = OutboxRelayPolicy()
     private val outboxMetrics = mockk<OutboxMetrics>(relaxed = true)
+    private val objectMapper = ObjectMapper()
+    private val structuredLogger = mockk<StructuredLogger>(relaxed = true)
 
     private val service = OutboxRelayService(
+        objectMapper = objectMapper,
         outboxEventRepository = outboxEventRepository,
         outboxMessagePublisher = outboxMessagePublisher,
         outboxRelayPolicy = outboxRelayPolicy,
         outboxMetrics = outboxMetrics,
+        structuredLogger = structuredLogger,
         maxRetryCount = 2,
     )
 

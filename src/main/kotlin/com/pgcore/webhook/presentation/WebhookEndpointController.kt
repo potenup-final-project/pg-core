@@ -1,5 +1,7 @@
 package com.pgcore.webhook.presentation
 
+import com.gop.logging.contract.ArgsLog
+import com.gop.logging.contract.ReturnLog
 import com.pgcore.webhook.application.usecase.command.CreateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.UpdateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.dto.CreateEndpointCommand
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/v1/merchants/{merchantId}/webhook-endpoints")
+@ArgsLog
+@ReturnLog
 class WebhookEndpointController(
     private val createWebhookEndpointUseCase: CreateWebhookEndpointUseCase,
     private val updateWebhookEndpointUseCase: UpdateWebhookEndpointUseCase,

@@ -1,5 +1,7 @@
 package com.pgcore.core.infra.outbox.application.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.gop.logging.contract.StructuredLogger
 import com.ninjasquad.springmockk.MockkBean
 import com.pgcore.core.infra.outbox.application.usecase.port.OutboxMessagePublisher
 import com.pgcore.core.infra.outbox.application.usecase.port.PublishResult
@@ -47,6 +49,12 @@ class OutboxRelayServiceIntegrationTest(
 
     @MockkBean(relaxed = true)
     private lateinit var outboxMetrics: OutboxMetrics
+
+    @MockkBean(relaxed = true)
+    private lateinit var objectMapper: ObjectMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var structuredLogger: StructuredLogger
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Test

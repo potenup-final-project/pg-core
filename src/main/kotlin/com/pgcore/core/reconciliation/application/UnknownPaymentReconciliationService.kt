@@ -1,5 +1,8 @@
 package com.pgcore.core.reconciliation.application
 
+import com.gop.logging.contract.ArgsLog
+import com.gop.logging.contract.ReturnLog
+import com.gop.logging.contract.TechnicalMonitored
 import com.pgcore.core.application.port.out.CardInquiryGateway
 import com.pgcore.core.application.port.out.dto.CardInquiryType
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
@@ -23,6 +26,8 @@ import java.time.Clock
 import java.time.LocalDateTime
 
 @Service
+@ArgsLog
+@ReturnLog
 class UnknownPaymentReconciliationService(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val paymentRepository: PaymentRepository,
@@ -33,6 +38,7 @@ class UnknownPaymentReconciliationService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @TechnicalMonitored(thresholdMs = 500, step = "payment.reconciliation.batch")
     fun reconcileBatch() {
         val now = LocalDateTime.now(clock)
         val due = paymentTransactionRepository.findUnknownDueBatch(now, properties.batchSize)
@@ -56,6 +62,7 @@ class UnknownPaymentReconciliationService(
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TechnicalMonitored(thresholdMs = 300, step = "payment.reconciliation.one")
     fun reconcileOne(txId: Long, now: LocalDateTime = LocalDateTime.now(clock)) {
         val leaseUntil = now.plusSeconds(properties.leaseSeconds)
         val claimed = paymentTransactionRepository.tryClaimUnknown(txId, now, leaseUntil)
