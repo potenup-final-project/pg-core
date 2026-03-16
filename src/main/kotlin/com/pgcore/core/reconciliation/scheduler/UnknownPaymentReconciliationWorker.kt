@@ -1,24 +1,39 @@
 package com.pgcore.core.reconciliation.scheduler
 
+import com.gop.logging.contract.LogPrefix
+import com.gop.logging.contract.LogResult
+import com.gop.logging.contract.LogSuffix
+import com.gop.logging.contract.LogType
+import com.gop.logging.contract.StepPrefix
+import com.gop.logging.contract.StructuredLogger
+import com.gop.logging.contract.TechnicalMonitored
 import com.pgcore.core.reconciliation.application.UnknownPaymentReconciliationProperties
 import com.pgcore.core.reconciliation.application.UnknownPaymentReconciliationService
-import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 @Component
 @ConditionalOnProperty(prefix = "payment.reconciliation.unknown", name = ["enabled"], havingValue = "true")
+@LogPrefix(StepPrefix.PAYMENT_RECONCILIATION)
 class UnknownPaymentReconciliationWorker(
     private val reconciliationService: UnknownPaymentReconciliationService,
     private val properties: UnknownPaymentReconciliationProperties,
+    private val structuredLogger: StructuredLogger,
 ) {
-    private val log = LoggerFactory.getLogger(javaClass)
-
     @Scheduled(fixedDelayString = "\${payment.reconciliation.unknown.interval-ms}")
+    @LogSuffix("runBatch")
+    @TechnicalMonitored(thresholdMs = 300, step = "payment.reconciliation.unknown")
     fun run() {
         runCatching { reconciliationService.reconcileBatch() }
-            .onFailure { e -> log.error("[UnknownPaymentReconciliationWorker] run failed", e) }
+            .onFailure { e ->
+                structuredLogger.error(
+                    logType = LogType.TECHNICAL,
+                    result = LogResult.FAIL,
+                    payload = mapOf("reason" to "unknown_reconciliation_run_failed"),
+                    error = e
+                )
+            }
     }
 
     init {

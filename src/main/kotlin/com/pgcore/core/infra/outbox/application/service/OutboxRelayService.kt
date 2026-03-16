@@ -12,8 +12,11 @@ import com.gop.logging.contract.LogPrefix
 import com.gop.logging.contract.LogResult
 import com.gop.logging.contract.LogSuffix
 import com.gop.logging.contract.LogType
+import com.gop.logging.contract.ArgsLog
+import com.gop.logging.contract.ReturnLog
 import com.gop.logging.contract.StepPrefix
 import com.gop.logging.contract.StructuredLogger
+import com.gop.logging.contract.TechnicalMonitored
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -22,6 +25,8 @@ import java.time.LocalDateTime
 
 @Service
 @LogPrefix(StepPrefix.OUTBOX_RELAY)
+@ArgsLog
+@ReturnLog
 class OutboxRelayService(
     private val objectMapper: ObjectMapper,
     private val outboxEventRepository: OutboxEventRepository,
@@ -33,6 +38,7 @@ class OutboxRelayService(
     private val maxRetryCount: Int,
 ) {
     @LogSuffix("relayBatch")
+    @TechnicalMonitored(thresholdMs = 300, step = "outbox.relay.batch")
     fun relayBatch(batchSize: Int) {
         val claimed = outboxEventRepository.claimDueBatch(batchSize)
         if (claimed.isEmpty()) return

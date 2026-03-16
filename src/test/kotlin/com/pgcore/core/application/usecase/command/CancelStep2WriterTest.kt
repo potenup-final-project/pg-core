@@ -5,7 +5,6 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
-import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.payment.PaymentTransaction
@@ -22,7 +21,6 @@ class CancelStep2WriterTest {
 
     private val paymentMutationRepository = mockk<PaymentMutationRepository>()
     private val paymentTransactionRepository = mockk<PaymentTransactionRepository>()
-    private val paymentRepository = mockk<PaymentRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val objectMapper = ObjectMapper()
 
@@ -31,7 +29,6 @@ class CancelStep2WriterTest {
         paymentTransactionRepository = paymentTransactionRepository,
         eventPublisher = eventPublisher,
         objectMapper = objectMapper,
-        paymentRepository = paymentRepository,
     )
 
     @Test
@@ -70,7 +67,7 @@ class CancelStep2WriterTest {
 
         verify(exactly = 1) {
             eventPublisher.publishEvent(
-                match {
+                match<Any> {
                     it is WebhookEvent &&
                         it.merchantId == command.merchantId &&
                         it.aggregateId == tx.paymentId &&
@@ -116,7 +113,7 @@ class CancelStep2WriterTest {
 
         verify(exactly = 1) {
             eventPublisher.publishEvent(
-                match {
+                match<Any> {
                     it is WebhookEvent &&
                         it.merchantId == command.merchantId &&
                         it.aggregateId == tx.paymentId &&
