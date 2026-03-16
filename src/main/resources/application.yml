@@ -3,9 +3,11 @@ LOG_SERVICE_NAME: ${LOG_SERVICE_NAME}
 pgcore:
   logging:
     legacy:
-      enabled: ${PGCORE_LEGACY_LOGGING_ENABLED:false}
+      enabled: ${PGCORE_LEGACY_LOGGING_ENABLED}
 
 spring:
+  main:
+    banner-mode: ${SPRING_BANNER_MODE}
   web:
     resources:
       add-mappings: false
@@ -66,6 +68,9 @@ management:
 logging:
   pattern:
     level: "%5p [traceId:%X{traceId} messageId:%X{messageId} eventId:%X{eventId}]"
+  level:
+    root: ${APP_ROOT_LOG_LEVEL}
+    com.gop.logging.core.StructuredLoggerImpl: ${LOG_MIN_LEVEL}
   technical:
     slow-threshold-ms: ${LOGGING_SLOW_THRESHOLD_MS}
 

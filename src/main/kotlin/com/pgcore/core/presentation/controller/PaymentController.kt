@@ -11,7 +11,8 @@ import com.pgcore.core.presentation.controller.dto.ConfirmPaymentRequest
 import com.pgcore.core.presentation.controller.dto.ConfirmPaymentResponse
 import com.pgcore.core.presentation.controller.dto.toCommand
 import com.pgcore.core.presentation.controller.dto.toResponse
-import com.pgcore.global.logging.annotation.BusinessLog
+import com.gop.logging.contract.ArgsLog
+import com.gop.logging.contract.ReturnLog
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestMapping
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/v1/payments")
+@ArgsLog
+@ReturnLog
 class PaymentController(
     private val claimPaymentUseCase: ClaimPaymentUseCase,
     private val confirmPaymentUseCase: ConfirmPaymentUseCase,
