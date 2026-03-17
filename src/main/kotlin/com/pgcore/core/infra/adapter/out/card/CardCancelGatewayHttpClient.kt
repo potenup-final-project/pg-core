@@ -6,24 +6,17 @@ import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
-import java.time.Duration
 
 @Component
 class CardCancelGatewayHttpClient(
-    restTemplateBuilder: RestTemplateBuilder,
+    private val restTemplate: RestTemplate,
     @Value("\${mock-card-server.url}") private val mockServerUrl: String
 ) : CardCancelGateway {
-
-    private val restTemplate: RestTemplate = restTemplateBuilder
-        .connectTimeout(Duration.ofSeconds(1))
-        .readTimeout(Duration.ofSeconds(3))
-        .build()
 
     data class MockCancelRequest(
         val providerRequestId: String,
