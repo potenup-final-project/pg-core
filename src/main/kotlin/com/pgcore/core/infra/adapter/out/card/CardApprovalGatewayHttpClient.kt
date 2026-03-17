@@ -5,6 +5,7 @@ import com.pgcore.core.application.port.out.dto.CardApprovalResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -17,6 +18,8 @@ class CardApprovalGatewayHttpClient(
     private val restTemplate: RestTemplate,
     @Value("\${mock-card-server.url}") private val mockServerUrl: String
 ) : CardApprovalGateway {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     /**
      * 목카드 서버(card-service)로 전송할 내부 전용 DTO
@@ -75,21 +78,33 @@ class CardApprovalGatewayHttpClient(
 
         val entity = HttpEntity(requestDto, headers)
 
-        // 이 구간에서 3초 이상 응답이 없으면 RestClientException(하위 SocketTimeoutException)이 발생하며,
-        // 이 예외는 ConfirmPaymentUseCase에서 캐치되어 UNKNOWN 처리 및 망취소 로직으로 넘어갑니다.
-        val response = restTemplate.postForObject(url, entity, MockCardResponse::class.java)
-            ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
+        val startTime = System.currentTimeMillis()
+        log.info("[CardApproval] Requesting approval for orderId: {}, amount: {} to {}", orderId, amount, url)
 
-        val approvalStatus = if (response.status == "SUCCESS") {
-            CardProviderResponseStatus.SUCCESS
-        } else {
-            CardProviderResponseStatus.FAIL
+        try {
+            // 이 구간에서 3초 이상 응답이 없으면 RestClientException(하위 SocketTimeoutException)이 발생하며,
+            // 이 예외는 ConfirmPaymentUseCase에서 캐치되어 UNKNOWN 처리 및 망취소 로직으로 넘어갑니다.
+            val response = restTemplate.postForObject(url, entity, MockCardResponse::class.java)
+                ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
+
+            val duration = System.currentTimeMillis() - startTime
+            log.info("[CardApproval] Received response for orderId: {} in {}ms, status: {}", orderId, duration, response.status)
+
+            val approvalStatus = if (response.status == "SUCCESS") {
+                CardProviderResponseStatus.SUCCESS
+            } else {
+                CardProviderResponseStatus.FAIL
+            }
+
+            return CardApprovalResult(
+                status = approvalStatus,
+                providerTxId = response.providerTxId,
+                failureCode = response.failureCode
+            )
+        } catch (e: Exception) {
+            val duration = System.currentTimeMillis() - startTime
+            log.error("[CardApproval] Failed after {}ms for orderId: {}. Error: {}", duration, orderId, e.message)
+            throw e
         }
-
-        return CardApprovalResult(
-            status = approvalStatus,
-            providerTxId = response.providerTxId,
-            failureCode = response.failureCode
-        )
     }
 }

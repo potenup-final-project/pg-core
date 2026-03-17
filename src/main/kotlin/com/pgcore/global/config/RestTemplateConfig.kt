@@ -23,12 +23,18 @@ class RestTemplateConfig {
     @Value("\${payment.http.connection-request-timeout-ms}")
     private val connectionRequestTimeout: Long = 1000
 
+    @Value("\${payment.http.max-connections-total}")
+    private val maxConnectionsTotal: Int = 200
+
+    @Value("\${payment.http.max-connections-per-route}")
+    private val maxConnectionsPerRoute: Int = 50
+
     @Bean
     fun pooledRestTemplate(builder: RestTemplateBuilder): RestTemplate {
         // 커넥션 풀 설정
         val connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-            .setMaxConnTotal(200)       // 전체 커넥션 최대 개수
-            .setMaxConnPerRoute(50)     // 호스트(IP:Port)당 커넥션 최대 개수
+            .setMaxConnTotal(maxConnectionsTotal)       // 전체 커넥션 최대 개수
+            .setMaxConnPerRoute(maxConnectionsPerRoute) // 호스트(IP:Port)당 커넥션 최대 개수
             .build()
 
         // 타임아웃 설정
