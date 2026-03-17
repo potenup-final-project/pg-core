@@ -24,7 +24,8 @@ import java.time.LocalDateTime
         Index(name = "uk_payments_merchant_order", columnList = "merchant_id, order_id", unique = true),
         Index(name = "idx_payments_merchant_created", columnList = "merchant_id, created_at"),
         Index(name = "idx_payments_status_updated", columnList = "status, updated_at"),
-        Index(name = "uq_payments_merchant_payment_key", columnList = "merchant_id, payment_key", unique = true)
+        Index(name = "uq_payments_merchant_payment_key", columnList = "merchant_id, payment_key", unique = true),
+        Index(name = "idx_payments_payment_key_status_amount", columnList = "payment_key, status, total_amount")
     ]
 )
 class Payment protected constructor(
