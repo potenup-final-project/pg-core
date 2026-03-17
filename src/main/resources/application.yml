@@ -143,6 +143,4 @@ aws:
 
 server:
   port: 8080
-  tomcat:
-    threads:
-      max: ${SERVER_TOMCAT_MAX_THREADS}
+
