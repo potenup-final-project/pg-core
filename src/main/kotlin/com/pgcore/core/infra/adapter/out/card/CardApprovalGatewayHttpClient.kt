@@ -79,7 +79,7 @@ class CardApprovalGatewayHttpClient(
         val entity = HttpEntity(requestDto, headers)
 
         val startTime = System.currentTimeMillis()
-        log.info("[CardApproval] Requesting approval for orderId: {}, amount: {} to {}", orderId, amount, url)
+        log.warn("[CardApproval] Requesting approval for orderId: {}, amount: {} to {}", orderId, amount, url)
 
         try {
             // 이 구간에서 3초 이상 응답이 없으면 RestClientException(하위 SocketTimeoutException)이 발생하며,
@@ -88,7 +88,7 @@ class CardApprovalGatewayHttpClient(
                 ?: throw BusinessException(PaymentErrorCode.EMPTY_PROVIDER_RESPONSE)
 
             val duration = System.currentTimeMillis() - startTime
-            log.info("[CardApproval] Received response for orderId: {} in {}ms, status: {}", orderId, duration, response.status)
+            log.warn("[CardApproval] Received response for orderId: {} in {}ms, status: {}", orderId, duration, response.status)
 
             val approvalStatus = if (response.status == "SUCCESS") {
                 CardProviderResponseStatus.SUCCESS
@@ -103,7 +103,7 @@ class CardApprovalGatewayHttpClient(
             )
         } catch (e: Exception) {
             val duration = System.currentTimeMillis() - startTime
-            log.error("[CardApproval] Failed after {}ms for orderId: {}. Error: {}", duration, orderId, e.message)
+            log.warn("[CardApproval] Failed after {}ms for orderId: {}. Error: {}", duration, orderId, e.message)
             throw e
         }
     }
