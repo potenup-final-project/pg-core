@@ -6,7 +6,8 @@ import com.pgcore.core.application.usecase.batch.dto.ReconcileCancelCommand
 import com.pgcore.core.application.usecase.batch.dto.ReconcileCancelResult
 import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.PaymentTransaction
-import org.slf4j.LoggerFactory
+import com.pgcore.global.logging.context.TraceScope
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
@@ -24,26 +25,34 @@ class ReconcileCancelBatchJob(
     private val targetFetcher: ReconcileCancelTargetFetcher,
     private val paymentRepository: PaymentRepository,
     private val reconcileCancelUseCase: ReconcileCancelUseCase,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log: StructuredLogger) {
 
     @Scheduled(cron = "0 * * * * *")
     fun run() {
-        val targets = targetFetcher.fetchReconciliationTargetsWithLock()
+        val runTraceId = TraceScope.newRunTraceId("pgcore-reconcile-cancel")
+        TraceScope.withTraceContext(traceId = runTraceId, messageId = "reconcile-cancel-batch") {
+            val targets = targetFetcher.fetchReconciliationTargetsWithLock()
 
-        if (targets.isEmpty()) return
+            if (targets.isEmpty()) return@withTraceContext
 
-        log.info("[ReconcileCancelBatch] 처리 대상 {}건 조회", targets.size)
+            log.info("[ReconcileCancelBatch] 처리 대상 {}건 조회", targets.size)
 
-        val paymentMap = paymentRepository
-            .findAllByPaymentIds(targets.map { it.paymentId }.distinct())
-            .associateBy { it.paymentId }
+            val paymentMap = paymentRepository
+                .findAllByPaymentIds(targets.map { it.paymentId }.distinct())
+                .associateBy { it.paymentId }
 
-        val results = targets.map { tx ->
-            processTransaction(tx, paymentMap[tx.paymentId])
+            val results = targets.map { tx ->
+                TraceScope.withTraceContext(
+                    traceId = runTraceId,
+                    messageId = "reconcile-cancel-batch",
+                    eventId = tx.id.toString()
+                ) {
+                    processTransaction(tx, paymentMap[tx.paymentId])
+                }
+            }
+
+            logBatchSummary(targets.size, results)
         }
-
-        logBatchSummary(targets.size, results)
     }
 
     private fun processTransaction(tx: PaymentTransaction, payment: Payment?): ReconcileCancelResult {

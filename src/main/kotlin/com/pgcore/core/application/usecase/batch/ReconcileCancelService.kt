@@ -9,7 +9,7 @@ import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.exception.BusinessException
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -26,9 +26,8 @@ import org.springframework.transaction.annotation.Transactional
 class ReconcileCancelService(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val paymentMutationRepository: PaymentMutationRepository,
-) : ReconcileCancelUseCase {
+    private val log: StructuredLogger) : ReconcileCancelUseCase {
 
-    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     override fun execute(command: ReconcileCancelCommand): ReconcileCancelResult {

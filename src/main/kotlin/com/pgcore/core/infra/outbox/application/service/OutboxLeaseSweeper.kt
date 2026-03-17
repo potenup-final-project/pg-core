@@ -9,6 +9,7 @@ import com.gop.logging.contract.StructuredLogger
 import com.gop.logging.contract.TechnicalMonitored
 import com.pgcore.core.infra.outbox.application.usecase.repository.OutboxEventRepository
 import com.pgcore.core.infra.outbox.infra.metrics.OutboxMetrics
+import com.pgcore.global.logging.context.TraceScope
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -27,26 +28,29 @@ class OutboxLeaseSweeper(
     @LogSuffix("sweepLeases")
     @TechnicalMonitored(thresholdMs = 300, step = "outbox.relay.lease.sweep")
     fun sweep() {
-        try {
-            val recovered = outboxEventRepository.recoverExpiredLeases(leaseMinutes)
-            if (recovered > 0) {
-                structuredLogger.warn(
-                    logType = LogType.TECHNICAL,
-                    result = LogResult.SUCCESS,
-                    payload = mapOf(
-                        "recovered" to recovered,
-                        "leaseMinutes" to leaseMinutes
+        val runTraceId = TraceScope.newRunTraceId("pgcore-outbox-lease")
+        TraceScope.withTraceContext(traceId = runTraceId, messageId = "outbox-lease-scheduler") {
+            try {
+                val recovered = outboxEventRepository.recoverExpiredLeases(leaseMinutes)
+                if (recovered > 0) {
+                    structuredLogger.warn(
+                        logType = LogType.TECHNICAL,
+                        result = LogResult.SUCCESS,
+                        payload = mapOf(
+                            "recovered" to recovered,
+                            "leaseMinutes" to leaseMinutes
+                        )
                     )
+                    outboxMetrics.recordLeaseRecovered(recovered)
+                }
+            } catch (e: Exception) {
+                structuredLogger.error(
+                    logType = LogType.TECHNICAL,
+                    result = LogResult.FAIL,
+                    payload = mapOf("reason" to "lease_sweep_failed"),
+                    error = e
                 )
-                outboxMetrics.recordLeaseRecovered(recovered)
             }
-        } catch (e: Exception) {
-            structuredLogger.error(
-                logType = LogType.TECHNICAL,
-                result = LogResult.FAIL,
-                payload = mapOf("reason" to "lease_sweep_failed"),
-                error = e
-            )
         }
     }
 }

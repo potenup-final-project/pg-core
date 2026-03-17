@@ -12,6 +12,7 @@ import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.vo.Money
+import com.gop.logging.contract.StructuredLogger
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -27,6 +28,7 @@ class UnknownPaymentReconciliationServiceTest {
     private val paymentRepository = mockk<PaymentRepository>()
     private val paymentMutationRepository = mockk<PaymentMutationRepository>()
     private val cardInquiryGateway = mockk<CardInquiryGateway>()
+    private val log = mockk<StructuredLogger>(relaxed = true)
 
     private val properties = UnknownPaymentReconciliationProperties().apply {
         enabled = true
@@ -43,6 +45,7 @@ class UnknownPaymentReconciliationServiceTest {
         cardInquiryGateway = cardInquiryGateway,
         properties = properties,
         clock = Clock.fixed(Instant.parse("2026-03-11T00:00:00Z"), ZoneOffset.UTC),
+        log = log,
     )
 
     @Test

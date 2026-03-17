@@ -1,15 +1,14 @@
 package com.pgcore.global.logging
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
 
 @Component
 class DomainEventLogger(
     private val objectMapper: ObjectMapper,
-) {
-    private val log = LoggerFactory.getLogger("DOMAIN_EVENT")
+    private val log: StructuredLogger) {
 
     fun log(
         eventName: String,

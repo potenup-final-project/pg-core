@@ -17,7 +17,7 @@ import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -37,8 +37,7 @@ class TechnicalLoggingAspect(
     private val objectMapper: ObjectMapper,
     @Value("\${logging.technical.slow-threshold-ms}")
     private val slowThresholdMs: Long,
-) {
-    private val log = LoggerFactory.getLogger(TechnicalLoggingAspect::class.java)
+    private val log: StructuredLogger) {
 
     @Around("execution(public * com.pgcore..infra..*(..))")
     fun around(joinPoint: ProceedingJoinPoint): Any? {
