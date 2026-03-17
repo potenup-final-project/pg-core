@@ -17,7 +17,7 @@ import com.pgcore.core.domain.payment.ReconciliationPendingReason
 import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
 import com.pgcore.core.utils.BackoffCalculator
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -35,8 +35,7 @@ class UnknownPaymentReconciliationService(
     private val cardInquiryGateway: CardInquiryGateway,
     private val properties: UnknownPaymentReconciliationProperties,
     private val clock: Clock,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log: StructuredLogger) {
 
     @TechnicalMonitored(thresholdMs = 500, step = "payment.reconciliation.batch")
     fun reconcileBatch() {

@@ -17,7 +17,7 @@ import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import java.time.Instant
@@ -26,8 +26,7 @@ import java.time.Instant
 @Component
 class BusinessLogAspect(
     private val objectMapper: ObjectMapper,
-) {
-    private val log = LoggerFactory.getLogger(BusinessLogAspect::class.java)
+    private val log: StructuredLogger) {
 
     private val allowedArgNames = setOf(
         "paymentKey",
