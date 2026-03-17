@@ -5,7 +5,6 @@ import com.pgcore.core.application.port.out.dto.CardInquiryResult
 import com.pgcore.core.application.port.out.dto.CardInquiryType
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -13,18 +12,12 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.util.UriComponentsBuilder
-import java.time.Duration
 
 @Component
 class CardInquiryGatewayHttpClient(
-    restTemplateBuilder: RestTemplateBuilder,
+    private val restTemplate: RestTemplate,
     @Value("\${mock-card-server.url}") private val mockServerUrl: String,
 ) : CardInquiryGateway {
-
-    private val restTemplate: RestTemplate = restTemplateBuilder
-        .connectTimeout(Duration.ofSeconds(1))
-        .readTimeout(Duration.ofSeconds(3))
-        .build()
 
     data class MockInquiryResponse(
         val providerRequestId: String,

@@ -6,25 +6,17 @@ import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.domain.exception.PaymentErrorCode
 import com.pgcore.core.exception.BusinessException
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
-import java.time.Duration
 
 @Component
 class CardApprovalGatewayHttpClient(
-    restTemplateBuilder: RestTemplateBuilder,
+    private val restTemplate: RestTemplate,
     @Value("\${mock-card-server.url}") private val mockServerUrl: String
 ) : CardApprovalGateway {
-
-    // 가이드라인 적용: 외부 통신 지연으로 인한 스레드 고갈을 막기 위한 타임아웃 강제 설정
-    private val restTemplate: RestTemplate = restTemplateBuilder
-        .connectTimeout(Duration.ofSeconds(1)) // 커넥션 타임아웃 1초
-        .readTimeout(Duration.ofSeconds(3))    // 리드 타임아웃 3초
-        .build()
 
     /**
      * 목카드 서버(card-service)로 전송할 내부 전용 DTO

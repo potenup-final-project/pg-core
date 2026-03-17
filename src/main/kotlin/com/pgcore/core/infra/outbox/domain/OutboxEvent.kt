@@ -18,6 +18,8 @@ import java.util.*
     indexes = [
         Index(name = "idx_outbox_status_next", columnList = "status, next_attempt_at"),
         Index(name = "idx_outbox_merchant_created", columnList = "merchant_id, created_at"),
+        Index(name = "idx_outbox_status_created", columnList = "status, created_at"),
+        Index(name = "idx_outbox_status_updated", columnList = "status, updated_at"),
     ]
 )
 class OutboxEvent protected constructor(
