@@ -124,6 +124,8 @@ payment:
     connect-timeout-ms: 2000
     read-timeout-ms: 5000
     connection-request-timeout-ms: 1000
+    max-connections-total: 500
+    max-connections-per-route: 100
   approval:
     metrics:
       pg: mock-card
