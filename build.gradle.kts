@@ -114,6 +114,9 @@ dependencies {
     // --- Redis ---
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
+    // --- HTTP Connection Pool ---
+    implementation("org.apache.httpcomponents.client5:httpclient5")
+
     // --- gop logging lib ---
     implementation("com.gop.logging:gop-logging-contract:$gopLoggingVersion")
     implementation("com.gop.logging:gop-logging-spring:$gopLoggingVersion")

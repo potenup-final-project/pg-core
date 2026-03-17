@@ -120,6 +120,10 @@ mock-card-server:
   url: ${MOCK_CARD_SERVER_URL}
 
 payment:
+  http:
+    connect-timeout-ms: 2000
+    read-timeout-ms: 5000
+    connection-request-timeout-ms: 1000
   approval:
     metrics:
       pg: mock-card
