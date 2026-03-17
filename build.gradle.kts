@@ -115,8 +115,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // --- gop logging lib ---
-    implementation("com.gop.logging:gop-logging-contract:$gopLoggingVersion")
-    implementation("com.gop.logging:gop-logging-spring:$gopLoggingVersion")
+    implementation("com.gop.logging:gop-logging-spring-starter:$gopLoggingVersion")
 }
 
 kotlin {
@@ -133,6 +132,10 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+kapt {
+    correctErrorTypes = true
 }
 
 springBoot {
