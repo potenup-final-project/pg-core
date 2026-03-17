@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Profile
@@ -22,9 +22,8 @@ import java.util.UUID
 @Profile("pgcore-legacy-logging")
 class TraceContextFilter(
     private val objectMapper: ObjectMapper,
-) : OncePerRequestFilter() {
+    private val log: StructuredLogger) : OncePerRequestFilter() {
 
-    private val log = LoggerFactory.getLogger(TraceContextFilter::class.java)
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         val uri = request.requestURI

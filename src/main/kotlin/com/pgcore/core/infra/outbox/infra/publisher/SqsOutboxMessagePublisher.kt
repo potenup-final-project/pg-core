@@ -8,7 +8,7 @@ import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.enums.WebhookOutboxErrorCode
 import com.pgcore.core.infra.outbox.infra.publisher.dto.SettlementDispatchMessage
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -27,8 +27,7 @@ class SqsOutboxMessagePublisher(
     private val objectMapper: ObjectMapper,
     @Value("\${outbox.relay.sqs.webhook-queue-url}") private val webhookQueueUrl: String,
     @Value("\${outbox.relay.sqs.settlement-queue-url}") private val settlementQueueUrl: String,
-) : OutboxMessagePublisher {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log: StructuredLogger) : OutboxMessagePublisher {
 
     companion object {
         private const val TRANSIENT = "TRANSIENT"

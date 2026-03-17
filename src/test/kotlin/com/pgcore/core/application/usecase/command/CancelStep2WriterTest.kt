@@ -11,6 +11,7 @@ import com.pgcore.core.domain.payment.PaymentTransaction
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
+import com.gop.logging.contract.StructuredLogger
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -23,12 +24,14 @@ class CancelStep2WriterTest {
     private val paymentTransactionRepository = mockk<PaymentTransactionRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val objectMapper = ObjectMapper()
+    private val log = mockk<StructuredLogger>(relaxed = true)
 
     private val writer = CancelStep2Writer(
         paymentMutationRepository = paymentMutationRepository,
         paymentTransactionRepository = paymentTransactionRepository,
         eventPublisher = eventPublisher,
         objectMapper = objectMapper,
+        log = log,
     )
 
     @Test

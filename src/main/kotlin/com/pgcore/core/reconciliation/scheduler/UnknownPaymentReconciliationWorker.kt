@@ -9,6 +9,7 @@ import com.gop.logging.contract.StructuredLogger
 import com.gop.logging.contract.TechnicalMonitored
 import com.pgcore.core.reconciliation.application.UnknownPaymentReconciliationProperties
 import com.pgcore.core.reconciliation.application.UnknownPaymentReconciliationService
+import com.pgcore.global.logging.context.TraceScope
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -25,15 +26,18 @@ class UnknownPaymentReconciliationWorker(
     @LogSuffix("runBatch")
     @TechnicalMonitored(thresholdMs = 300, step = "payment.reconciliation.unknown")
     fun run() {
-        runCatching { reconciliationService.reconcileBatch() }
-            .onFailure { e ->
-                structuredLogger.error(
-                    logType = LogType.TECHNICAL,
-                    result = LogResult.FAIL,
-                    payload = mapOf("reason" to "unknown_reconciliation_run_failed"),
-                    error = e
-                )
-            }
+        val runTraceId = TraceScope.newRunTraceId("pgcore-unknown-recon")
+        TraceScope.withTraceContext(traceId = runTraceId, messageId = "unknown-reconciliation-scheduler") {
+            runCatching { reconciliationService.reconcileBatch() }
+                .onFailure { e ->
+                    structuredLogger.error(
+                        logType = LogType.TECHNICAL,
+                        result = LogResult.FAIL,
+                        payload = mapOf("reason" to "unknown_reconciliation_run_failed"),
+                        error = e
+                    )
+                }
+        }
     }
 
     init {

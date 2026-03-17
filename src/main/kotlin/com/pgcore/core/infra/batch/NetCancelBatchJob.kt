@@ -6,7 +6,8 @@ import com.pgcore.core.application.usecase.batch.dto.NetCancelCommand
 import com.pgcore.core.application.usecase.batch.dto.NetCancelResult
 import com.pgcore.core.domain.payment.Payment
 import com.pgcore.core.domain.payment.PaymentTransaction
-import org.slf4j.LoggerFactory
+import com.pgcore.global.logging.context.TraceScope
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
@@ -16,28 +17,36 @@ class NetCancelBatchJob(
     private val targetFetcher: NetCancelTargetFetcher,
     private val paymentRepository: PaymentRepository,
     private val netCancelUseCase: NetCancelUseCase,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log: StructuredLogger) {
 
     @Scheduled(cron = "0 * * * * *")
     fun run() {
-        val now = LocalDateTime.now()
-        val targets = targetFetcher.fetchNetCancelTargetsWithLock(now)
+        val runTraceId = TraceScope.newRunTraceId("pgcore-net-cancel")
+        TraceScope.withTraceContext(traceId = runTraceId, messageId = "net-cancel-batch") {
+            val now = LocalDateTime.now()
+            val targets = targetFetcher.fetchNetCancelTargetsWithLock(now)
 
-        if (targets.isEmpty()) return
+            if (targets.isEmpty()) return@withTraceContext
 
-        log.info("[NetCancelBatch] 처리 대상 {}건 조회 (기준시각={})", targets.size, now)
+            log.info("[NetCancelBatch] 처리 대상 {}건 조회 (기준시각={})", targets.size, now)
 
-        val paymentIds = targets.map { it.paymentId }.distinct()
-        val paymentMap = paymentRepository.findAllByPaymentIds(paymentIds)
-            .associateBy { it.paymentId }
+            val paymentIds = targets.map { it.paymentId }.distinct()
+            val paymentMap = paymentRepository.findAllByPaymentIds(paymentIds)
+                .associateBy { it.paymentId }
 
-        val results = targets.map { tx ->
-            val payment = paymentMap[tx.paymentId]
-            processNetCancelForTransaction(tx, payment)
+            val results = targets.map { tx ->
+                TraceScope.withTraceContext(
+                    traceId = runTraceId,
+                    messageId = "net-cancel-batch",
+                    eventId = tx.id.toString()
+                ) {
+                    val payment = paymentMap[tx.paymentId]
+                    processNetCancelForTransaction(tx, payment)
+                }
+            }
+
+            logBatchSummary(targets.size, results)
         }
-
-        logBatchSummary(targets.size, results)
     }
 
     /**

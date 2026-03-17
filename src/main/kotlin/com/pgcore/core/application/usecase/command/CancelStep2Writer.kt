@@ -14,7 +14,7 @@ import com.pgcore.core.exception.BusinessException
 import com.pgcore.core.infra.outbox.application.service.SettlementEvent
 import com.pgcore.core.infra.outbox.application.service.WebhookEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -26,8 +26,7 @@ class CancelStep2Writer(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val eventPublisher: ApplicationEventPublisher,
     private val objectMapper: ObjectMapper,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log: StructuredLogger) {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun finalizeCancel(

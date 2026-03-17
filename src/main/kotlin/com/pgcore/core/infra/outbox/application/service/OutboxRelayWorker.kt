@@ -7,6 +7,7 @@ import com.gop.logging.contract.LogType
 import com.gop.logging.contract.StepPrefix
 import com.gop.logging.contract.StructuredLogger
 import com.gop.logging.contract.TechnicalMonitored
+import com.pgcore.global.logging.context.TraceScope
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -24,15 +25,18 @@ class OutboxRelayWorker(
     @LogSuffix("relayScheduled")
     @TechnicalMonitored(thresholdMs = 300, step = "outbox.relay.scheduled")
     fun relay() {
-        try {
-            outboxRelayService.relayBatch(batchSize)
-        } catch (e: Exception) {
-            structuredLogger.error(
-                logType = LogType.TECHNICAL,
-                result = LogResult.FAIL,
-                payload = mapOf("reason" to "relay_failed"),
-                error = e
-            )
+        val runTraceId = TraceScope.newRunTraceId("pgcore-outbox-relay")
+        TraceScope.withTraceContext(traceId = runTraceId, messageId = "outbox-relay-scheduler") {
+            try {
+                outboxRelayService.relayBatch(batchSize)
+            } catch (e: Exception) {
+                structuredLogger.error(
+                    logType = LogType.TECHNICAL,
+                    result = LogResult.FAIL,
+                    payload = mapOf("reason" to "relay_failed"),
+                    error = e
+                )
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.pgcore.global.exception
 
 import com.pgcore.core.exception.BusinessException
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -9,9 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
 @RestControllerAdvice
-class GlobalExceptionHandler {
+class GlobalExceptionHandler (private val log: StructuredLogger){
 
-    private val log = LoggerFactory.getLogger(javaClass)
 
     data class ErrorResponse(val code: String, val message: String)
 

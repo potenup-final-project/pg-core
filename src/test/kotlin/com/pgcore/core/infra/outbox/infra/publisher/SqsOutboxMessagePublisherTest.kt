@@ -5,6 +5,7 @@ import com.pgcore.core.infra.outbox.domain.OutboxEvent
 import com.pgcore.core.infra.outbox.domain.OutboxEventType
 import com.pgcore.core.infra.outbox.infra.publisher.dto.SettlementDispatchMessage
 import com.pgcore.core.infra.outbox.infra.publisher.dto.WebhookDispatchMessage
+import com.gop.logging.contract.StructuredLogger
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -26,12 +27,14 @@ class SqsOutboxMessagePublisherTest {
     private val objectMapper = ObjectMapper()
     private val webhookQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/111111111111/webhook-dispatch"
     private val settlementQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/111111111111/payment-event-queue"
+    private val log = mockk<StructuredLogger>(relaxed = true)
 
     private val publisher = SqsOutboxMessagePublisher(
         sqsClient = sqsClient,
         objectMapper = objectMapper,
         webhookQueueUrl = webhookQueueUrl,
         settlementQueueUrl = settlementQueueUrl,
+        log = log,
     )
 
     @Test

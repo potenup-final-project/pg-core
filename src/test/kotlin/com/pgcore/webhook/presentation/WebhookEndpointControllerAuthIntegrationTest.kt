@@ -3,6 +3,7 @@ package com.pgcore.webhook.presentation
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.ninjasquad.springmockk.MockkBean
 import com.pgcore.core.infra.idempotency.IdempotencyRedisRepository
+import com.gop.logging.contract.StructuredLogger
 import com.pgcore.webhook.application.usecase.command.CreateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.UpdateWebhookEndpointUseCase
 import com.pgcore.webhook.application.usecase.command.dto.CreateEndpointCommand
@@ -55,6 +56,9 @@ class WebhookEndpointControllerAuthIntegrationTest(
 
     @MockkBean(relaxed = true)
     private lateinit var webhookAuthMetrics: WebhookAuthMetrics
+
+    @MockkBean(relaxed = true)
+    private lateinit var log: StructuredLogger
 
     @Test
     fun `인증 헤더가 없으면 401`() {

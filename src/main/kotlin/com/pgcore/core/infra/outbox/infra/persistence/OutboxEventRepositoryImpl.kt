@@ -8,7 +8,7 @@ import com.pgcore.core.infra.outbox.domain.QOutboxEvent
 import com.querydsl.jpa.impl.JPAQueryFactory
 import jakarta.persistence.EntityManager
 import jakarta.persistence.LockModeType
-import org.slf4j.LoggerFactory
+import com.gop.logging.contract.StructuredLogger
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Propagation
@@ -21,9 +21,8 @@ class OutboxEventRepositoryImpl(
     private val queryFactory: JPAQueryFactory,
     private val entityManager: EntityManager,
     private val jdbcTemplate: JdbcTemplate,
-) : OutboxEventRepository {
+    private val log: StructuredLogger) : OutboxEventRepository {
     private val qOutbox = QOutboxEvent.outboxEvent
-    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     override fun save(event: OutboxEvent): OutboxEvent {
