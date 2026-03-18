@@ -15,7 +15,7 @@ import org.springframework.web.util.ContentCachingResponseWrapper
 
 @Component
 class IdempotencyFilter(
-    private val idempotencyRedisRepository: IdempotencyRedisRepository,
+    private val idempotencyRedisRepository: IdempotencyRepository,
     @Qualifier("handlerExceptionResolver") private val exceptionResolver: HandlerExceptionResolver
 ) : OncePerRequestFilter() {
 

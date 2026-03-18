@@ -11,7 +11,7 @@ import java.time.Duration
 class IdempotencyRedisRepository(
     private val redisTemplate: StringRedisTemplate,
     private val objectMapper: ObjectMapper,
-) {
+) : IdempotencyRepository {
     companion object {
         private const val IDEMPOTENCY_PREFIX = "idempotency:"
         private val PROCESSING_TTL = Duration.ofMinutes(10)
@@ -19,27 +19,27 @@ class IdempotencyRedisRepository(
         private val DONE_TTL = Duration.ofHours(24)
     }
 
-    fun buildRedisKey(method: String, requestURI: String, idempotencyKey: String): String {
+    override fun buildRedisKey(method: String, requestURI: String, idempotencyKey: String): String {
         return "$IDEMPOTENCY_PREFIX$method:$requestURI:$idempotencyKey"
     }
 
-    fun acquireIfAbsent(redisKey: String, requestHash: String): Boolean {
+    override fun acquireIfAbsent(redisKey: String, requestHash: String): Boolean {
         val initialData = IdempotencyData(status = IdempotencyStatus.PROCESSING, requestHash = requestHash)
         return redisTemplate.opsForValue().setIfAbsent(redisKey, serialize(initialData), PROCESSING_TTL) ?: false
     }
 
-    fun get(redisKey: String): IdempotencyData {
+    override fun get(redisKey: String): IdempotencyData {
         val json = redisTemplate.opsForValue().get(redisKey)
             ?: throw BusinessException(PaymentErrorCode.IDEMPOTENCY_STATE_LOST)
         return deserialize(json)
     }
 
-    fun saveUnknown(redisKey: String, requestHash: String) {
+    override fun saveUnknown(redisKey: String, requestHash: String) {
         val data = IdempotencyData(status = IdempotencyStatus.UNKNOWN, requestHash = requestHash)
         redisTemplate.opsForValue().set(redisKey, serialize(data), UNKNOWN_TTL)
     }
 
-    fun saveDone(redisKey: String, requestHash: String, responseStatus: Int, responseBody: String) {
+    override fun saveDone(redisKey: String, requestHash: String, responseStatus: Int, responseBody: String) {
         val data = IdempotencyData(
             status = IdempotencyStatus.DONE,
             requestHash = requestHash,

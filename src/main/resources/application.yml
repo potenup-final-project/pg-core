@@ -56,6 +56,10 @@ management:
     health:
       show-details: always
 
+  health:
+    circuitbreakers:
+      enabled: ${CB_HEALTH_ENABLED:true}
+
   prometheus:
     metrics:
       export:
@@ -136,6 +140,82 @@ payment:
       batch-size: ${PAYMENT_RECON_UNKNOWN_BATCH_SIZE}
       lease-seconds: ${PAYMENT_RECON_UNKNOWN_LEASE_SECONDS}
       max-retry-attempts: ${PAYMENT_RECON_UNKNOWN_MAX_RETRY_ATTEMPTS}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: ${CB_DEFAULT_REGISTER_HEALTH_INDICATOR:true}
+        sliding-window-type: ${CB_DEFAULT_SLIDING_WINDOW_TYPE:COUNT_BASED}
+        sliding-window-size: ${CB_DEFAULT_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${CB_DEFAULT_MINIMUM_NUMBER_OF_CALLS:10}
+        failure-rate-threshold: ${CB_DEFAULT_FAILURE_RATE_THRESHOLD:50}
+        slow-call-rate-threshold: ${CB_DEFAULT_SLOW_CALL_RATE_THRESHOLD:80}
+        slow-call-duration-threshold: ${CB_DEFAULT_SLOW_CALL_DURATION_THRESHOLD:2s}
+        wait-duration-in-open-state: ${CB_DEFAULT_WAIT_DURATION_IN_OPEN_STATE:15s}
+        permitted-number-of-calls-in-half-open-state: ${CB_DEFAULT_PERMITTED_CALLS_IN_HALF_OPEN:5}
+        record-exceptions:
+          - org.springframework.web.client.RestClientException
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+        ignore-exceptions:
+          - com.pgcore.core.exception.BusinessException
+    instances:
+      cb-card-approve:
+        base-config: default
+      cb-card-cancel:
+        base-config: default
+        failure-rate-threshold: ${CB_CARD_CANCEL_FAILURE_RATE_THRESHOLD:60}
+        wait-duration-in-open-state: ${CB_CARD_CANCEL_WAIT_DURATION_IN_OPEN_STATE:20s}
+        permitted-number-of-calls-in-half-open-state: ${CB_CARD_CANCEL_PERMITTED_CALLS_IN_HALF_OPEN:3}
+      cb-card-inquiry:
+        base-config: default
+        sliding-window-size: ${CB_CARD_INQUIRY_SLIDING_WINDOW_SIZE:10}
+        minimum-number-of-calls: ${CB_CARD_INQUIRY_MINIMUM_NUMBER_OF_CALLS:5}
+        failure-rate-threshold: ${CB_CARD_INQUIRY_FAILURE_RATE_THRESHOLD:70}
+        wait-duration-in-open-state: ${CB_CARD_INQUIRY_WAIT_DURATION_IN_OPEN_STATE:30s}
+      cb-sqs-outbox:
+        base-config: default
+        sliding-window-type: ${CB_SQS_OUTBOX_SLIDING_WINDOW_TYPE:TIME_BASED}
+        sliding-window-size: ${CB_SQS_OUTBOX_SLIDING_WINDOW_SIZE:30}
+      cb-redis:
+        base-config: default
+        sliding-window-size: ${CB_REDIS_SLIDING_WINDOW_SIZE:30}
+        failure-rate-threshold: ${CB_REDIS_FAILURE_RATE_THRESHOLD:40}
+        wait-duration-in-open-state: ${CB_REDIS_WAIT_DURATION_IN_OPEN_STATE:10s}
+        record-exceptions:
+          - org.springframework.data.redis.RedisConnectionFailureException
+          - org.springframework.data.redis.RedisSystemException
+          - io.lettuce.core.RedisConnectionException
+
+  retry:
+    instances:
+      cb-card-approve:
+        max-attempts: ${CB_CARD_APPROVE_RETRY_MAX_ATTEMPTS:1}
+      cb-card-cancel:
+        max-attempts: ${CB_CARD_CANCEL_RETRY_MAX_ATTEMPTS:2}
+        wait-duration: ${CB_CARD_CANCEL_RETRY_WAIT_DURATION:500ms}
+      cb-card-inquiry:
+        max-attempts: ${CB_CARD_INQUIRY_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${CB_CARD_INQUIRY_RETRY_WAIT_DURATION:1s}
+
+  bulkhead:
+    instances:
+      cb-card-approve:
+        max-concurrent-calls: ${CB_CARD_APPROVE_BULKHEAD_MAX_CONCURRENT_CALLS:30}
+        max-wait-duration: ${CB_CARD_APPROVE_BULKHEAD_MAX_WAIT_DURATION:500ms}
+      cb-card-cancel:
+        max-concurrent-calls: ${CB_CARD_CANCEL_BULKHEAD_MAX_CONCURRENT_CALLS:15}
+        max-wait-duration: ${CB_CARD_CANCEL_BULKHEAD_MAX_WAIT_DURATION:500ms}
+      cb-card-inquiry:
+        max-concurrent-calls: ${CB_CARD_INQUIRY_BULKHEAD_MAX_CONCURRENT_CALLS:5}
+        max-wait-duration: ${CB_CARD_INQUIRY_BULKHEAD_MAX_WAIT_DURATION:1s}
+      cb-sqs-outbox:
+        max-concurrent-calls: ${CB_SQS_OUTBOX_BULKHEAD_MAX_CONCURRENT_CALLS:10}
+        max-wait-duration: ${CB_SQS_OUTBOX_BULKHEAD_MAX_WAIT_DURATION:500ms}
+      cb-redis:
+        max-concurrent-calls: ${CB_REDIS_BULKHEAD_MAX_CONCURRENT_CALLS:50}
+        max-wait-duration: ${CB_REDIS_BULKHEAD_MAX_WAIT_DURATION:100ms}
 aws:
   region: ${AWS_REGION}
   access-key-id: ${AWS_ACCESS_KEY_ID:}
