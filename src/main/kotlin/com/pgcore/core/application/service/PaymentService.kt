@@ -4,6 +4,7 @@ import com.pgcore.core.application.port.out.CardApprovalGateway
 import com.pgcore.core.application.port.out.CardCancelGateway
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.PaymentRepository
+import com.pgcore.core.application.repository.PaymentMutationRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.CancelPaymentUseCase
 import com.pgcore.core.application.usecase.command.CancelStep1Writer
@@ -28,6 +29,7 @@ import com.pgcore.core.domain.payment.PaymentTxStatus
 import com.pgcore.core.domain.payment.PaymentTxType
 import com.pgcore.core.domain.payment.vo.Money
 import com.pgcore.core.exception.BusinessException
+import com.pgcore.core.infra.resilience.CircuitOpenException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -35,6 +37,7 @@ import java.time.LocalDateTime
 @Service
 class PaymentService(
     private val paymentRepository: PaymentRepository,
+    private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val claimPaymentWriter: ClaimPaymentWriter,
     private val cardApprovalGateway: CardApprovalGateway,
@@ -139,6 +142,15 @@ class PaymentService(
             metricRecorded = true
 
             return ConfirmPaymentResult.from(transaction, command.paymentKey)
+        } catch (e: CircuitOpenException) {
+            if (!metricRecorded) {
+                paymentApprovalMetrics.recordFail()
+            }
+            val reverted = paymentMutationRepository.revertToReadyWithTxCleanup(command.paymentKey, txId)
+            if (reverted == 0) {
+                throw BusinessException(PaymentErrorCode.IDEMPOTENCY_STATE_LOST)
+            }
+            throw BusinessException(PaymentErrorCode.PROVIDER_CIRCUIT_OPEN)
         } catch (e: Exception) {
             if (!metricRecorded) {
                 if (approvalStatus == CardProviderResponseStatus.SUCCESS) {
@@ -217,6 +229,17 @@ class PaymentService(
             return CancelPaymentResult(
                 paymentKey = command.paymentKey,
                 status = updatedPayment.status,
+                totalAmount = updatedPayment.totalAmount.amount,
+                balanceAmount = updatedPayment.balanceAmount.amount,
+            )
+        } catch (e: CircuitOpenException) {
+            cancelStep2Writer.markForDeferredCancel(command.paymentKey, txId)
+            val updatedPayment = paymentRepository.findByPaymentKey(command.paymentKey)
+                ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
+
+            return CancelPaymentResult(
+                paymentKey = command.paymentKey,
+                status = PaymentStatus.UNKNOWN,
                 totalAmount = updatedPayment.totalAmount.amount,
                 balanceAmount = updatedPayment.balanceAmount.amount,
             )

@@ -276,6 +276,7 @@ enum class PaymentTxFailureCode(val defaultMessage: String) {
     FRAUD_SUSPECTED("부정 사용 의심으로 카드사에서 승인을 거절했습니다."),
     MERCHANT_NOT_ALLOWED("해당 가맹점에서는 사용이 허용되지 않아 승인에 실패했습니다."),
     DUPLICATE_REQUEST("중복 승인 요청으로 카드사에서 거절했습니다."),
+    CIRCUIT_OPEN_REJECTED("서킷 브레이커 OPEN으로 외부 결제 요청이 차단되었습니다."),
     NET_CANCEL_PENDING("원장 확정 실패(ABORTED)로 인한 망취소 대기"),
     INTERNAL_ERROR("승인 처리 중 내부 오류가 발생했습니다."),
     NET_CANCEL_DONE("카드사 망취소가 완료되었습니다."),
