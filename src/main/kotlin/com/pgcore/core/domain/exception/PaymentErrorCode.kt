@@ -51,9 +51,11 @@ enum class PaymentErrorCode(
     IDEMPOTENCY_DATA_MISMATCH(HttpStatus.CONFLICT, "PAY-0603", "멱등키의 요청 데이터가 일치하지 않습니다. (데이터 변조 의심)"),
     IDEMPOTENCY_STATE_LOST(HttpStatus.CONFLICT, "PAY-0604", "동시 요청 처리 중 상태가 유실되었거나 일시적인 지연이 발생했습니다. 결제 내역을 먼저 확인해 주세요."),
     IDEMPOTENCY_RETRY_BLOCKED(HttpStatus.CONFLICT, "PAY-0605", "이전 요청 처리 중 서버 오류가 발생하여 재시도가 차단되었습니다. 망취소 대기 중일 수 있으니 결제 상태(단건 조회 API)를 먼저 확인해 주세요."),
+    IDEMPOTENCY_TEMPORARILY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PAY-0606", "멱등성 저장소가 일시적으로 불안정합니다. 잠시 후 다시 시도해 주세요."),
 
     // ===== 외부 API 통신 오류 =====
     EMPTY_PROVIDER_RESPONSE(HttpStatus.BAD_GATEWAY, "PAY-0701", "결제 승인 API 응답값이 비어 있습니다."),
+    PROVIDER_CIRCUIT_OPEN(HttpStatus.SERVICE_UNAVAILABLE, "PAY-CB-001", "외부 결제 서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해 주세요."),
 
     // ===== 시스템 공통 =====
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PAY-9999", "서버 내부 오류가 발생했습니다.")
