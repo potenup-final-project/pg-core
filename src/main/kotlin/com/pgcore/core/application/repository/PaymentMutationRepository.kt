@@ -13,6 +13,9 @@ interface PaymentMutationRepository {
     // 4. 통신 타임아웃/장애 시 불명 상태 마킹 (-> UNKNOWN)
     fun markUnknown(paymentKey: String): Int
 
+    // 4-A. 승인 서킷 OPEN 시 상태 복원 + Step1 tx 정리
+    fun revertToReadyWithTxCleanup(paymentKey: String, txId: Long): Int
+
     // 4-1. 대사 확정: UNKNOWN/IN_PROGRESS -> DONE
     fun reconcileApproveSuccess(paymentKey: String): Int
 

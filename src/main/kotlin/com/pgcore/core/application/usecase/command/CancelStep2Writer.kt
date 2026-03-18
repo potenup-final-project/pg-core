@@ -5,6 +5,7 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
+import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.exception.PaymentErrorCode
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Component
 class CancelStep2Writer(
+    private val paymentRepository: PaymentRepository,
     private val paymentMutationRepository: PaymentMutationRepository,
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val eventPublisher: ApplicationEventPublisher,
@@ -104,6 +106,22 @@ class CancelStep2Writer(
         } else {
             transaction.markUnknown()
         }
+        paymentTransactionRepository.saveAndFlush(transaction)
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun markForDeferredCancel(paymentKey: String, txId: Long) {
+        val payment = paymentRepository.findByPaymentKey(paymentKey)
+            ?: throw BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND)
+
+        val transaction = paymentTransactionRepository.findById(txId)
+            ?: throw BusinessException(PaymentErrorCode.PAYMENT_TX_NOT_FOUND)
+
+        if (transaction.paymentId != payment.paymentId) {
+            throw BusinessException(PaymentErrorCode.PAYMENT_TX_NOT_FOUND)
+        }
+
+        transaction.markNeedNetCancel(providerTxId = transaction.providerTxId)
         paymentTransactionRepository.saveAndFlush(transaction)
     }
 
