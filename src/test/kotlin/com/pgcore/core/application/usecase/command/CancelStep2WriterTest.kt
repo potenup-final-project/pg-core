@@ -5,6 +5,7 @@ import com.pgcore.core.application.port.out.dto.CardCancelResult
 import com.pgcore.core.application.port.out.dto.CardProviderResponseStatus
 import com.pgcore.core.application.repository.CancelApplyResult
 import com.pgcore.core.application.repository.PaymentMutationRepository
+import com.pgcore.core.application.repository.PaymentRepository
 import com.pgcore.core.application.repository.PaymentTransactionRepository
 import com.pgcore.core.application.usecase.command.dto.CancelPaymentCommand
 import com.pgcore.core.domain.payment.PaymentTransaction
@@ -21,12 +22,14 @@ import org.springframework.context.ApplicationEventPublisher
 class CancelStep2WriterTest {
 
     private val paymentMutationRepository = mockk<PaymentMutationRepository>()
+    private val paymentRepository = mockk<PaymentRepository>(relaxed = true)
     private val paymentTransactionRepository = mockk<PaymentTransactionRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val objectMapper = ObjectMapper()
     private val log = mockk<StructuredLogger>(relaxed = true)
 
     private val writer = CancelStep2Writer(
+        paymentRepository = paymentRepository,
         paymentMutationRepository = paymentMutationRepository,
         paymentTransactionRepository = paymentTransactionRepository,
         eventPublisher = eventPublisher,
