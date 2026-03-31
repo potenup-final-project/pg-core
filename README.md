@@ -138,10 +138,3 @@ docker run --rm -p 8080:8080 --env-file .env pg-core:local
   - self-hosted runner에서 컨테이너 교체 배포
   - 배포 후 헬스체크 수행
 
-## 9. 면접 관점에서 강조할 점
-
-- 결제 상태 전이에서 “TX 경계”를 명확히 둔 설계
-- 멱등성(HTTP 레벨 + 도메인 레벨) 이중 방어
-- Outbox + 재시도/Dead-letter 정책으로 전달 신뢰성 확보
-- Resilience4j로 외부 장애를 예측 가능한 도메인 오류로 수렴
-- 운영 메트릭/구조화 로깅을 기능 구현과 함께 설계한 점
